@@ -1,15 +1,21 @@
+import json
+import logging
+import os
+
+import pandas as pd
 import torch.utils.data as data
 
-import utils.general_utils
+import utils.general_utils as utils
 from datasets_and_dataloaders.custom_dataset import CustomDataset
 from models.Model import Model
+
+logger = logging.getLogger(__name__)
 
 
 class Experiment:
 
     def __init__(self, config: dict):
         self.config = config
-
         self.trainset = CustomDataset(config['dataloader'], train=True)
         self.testset = CustomDataset(config['dataloader'], train=False)
 
@@ -23,9 +29,27 @@ class Experiment:
         self.num_of_classes = len(self.classes)
         self.input_shape = self.trainset.get_random_sample_after_transform().shape
 
-        self.model = Model(config, self.input_shape, self.num_of_classes).to(utils.general_utils.device)
+        self.model = Model(config, self.input_shape, self.num_of_classes).to(utils.device)
+        self._init_experiment_folder()
+
+    def _init_experiment_folder(self):
+
+        self.experiment_path = utils.get_experiment_path(self.config.get('log').get('experiment_name'))
+        if not os.path.exists(self.experiment_path):
+            os.makedirs(self.experiment_path)
+        json.dump(self.config, open(os.path.join(self.experiment_path, "config.json"), 'w'), indent=4)
 
     def run(self):
-        x = utils.general_utils.run_train_epoch(self.model, self.trainloader)
-        utils.general_utils.evaluate(self.model, self.testloader)
-        return x
+        for epoch in range(self.config['epochs']):
+            logger.info(f"Epoch {epoch}")
+            # utils.run_train_epoch(self.model, self.trainloader)
+            evaluate_result = utils.evaluate(self.model, self.testloader)
+            x = 4
+            self.save_results_in_experiment_folder(epoch, evaluate_result)
+
+    def save_results_in_experiment_folder(self, epoch, evaluate_result):
+        results_csv = os.path.join(self.experiment_path, "results.csv")
+        df = pd.DataFrame.from_dict(evaluate_result, orient='index').T
+        df.insert(0, 'epoch', epoch)
+
+        df.to_csv(results_csv, mode='a', header=not os.path.exists(results_csv), index=False)

@@ -1,4 +1,6 @@
+import os.path
 import random
+from datetime import datetime
 
 import numpy as np
 import torch
@@ -16,7 +18,7 @@ def set_seed(seed):
     random.seed(seed)
 
 
-def run_train_epoch(model: Model, data_loader, scheduler=None):
+def run_train_epoch(model: Model, data_loader, scheduler=None)->float:
     model.train()
     total_loss = 0
     for batch in tqdm(data_loader, desc="Training epoch"):
@@ -33,7 +35,7 @@ def run_train_epoch(model: Model, data_loader, scheduler=None):
     return total_loss
 
 
-def evaluate(model: Model, data_loader):
+def evaluate(model: Model, data_loader)->dict:
     model.eval()
     total_loss = 0
     with torch.no_grad():
@@ -44,3 +46,10 @@ def evaluate(model: Model, data_loader):
     model_evaluation['loss'] = total_loss
     print(model_evaluation)
     return model_evaluation
+
+
+def get_experiment_path(experiment_name) -> str:
+    now = datetime.now()
+    experiment_name += now.strftime("_%Y-%m-%d_%H-%M-%S")
+    experiment_path = os.path.join("experiments", experiment_name)
+    return experiment_path

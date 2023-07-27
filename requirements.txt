@@ -9,3 +9,4 @@ scikit-learn~=1.0.2
 datasets~=2.3.2
 Pillow~=10.0.0
 pyyaml-include
+pandas~=2.0.3
