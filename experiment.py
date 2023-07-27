@@ -42,7 +42,7 @@ class Experiment:
     def run(self):
         for epoch in range(self.config['epochs']):
             logger.info(f"Epoch {epoch}")
-            # utils.run_train_epoch(self.model, self.trainloader)
+            utils.run_train_epoch(self.model, self.trainloader)
             evaluate_result = utils.evaluate(self.model, self.testloader)
             x = 4
             self.save_results_in_experiment_folder(epoch, evaluate_result)
