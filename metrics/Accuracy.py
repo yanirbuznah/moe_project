@@ -1,3 +1,5 @@
+import torch
+
 from metrics.Metric import Metric
 
 
@@ -7,7 +9,7 @@ class Accuracy(Metric):
         self.total = 0
 
     def __call__(self, *args, **kwargs):
-        y_pred, y_true = args
+        y_pred, y_true = self._preprocess_args(*args)
         self.correct += (y_pred == y_true).sum().item()
         self.total += y_true.size(0)
 
