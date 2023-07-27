@@ -2,7 +2,7 @@ import torch
 import torchvision
 from torch import nn
 
-from metrics.utils import MetricsFactory
+from metrics.MetricsFactory import MetricsFactory
 
 
 def get_model(model_config: dict, input_shape, output_shape):
@@ -36,4 +36,4 @@ def get_loss(loss:dict):
 
 
 def get_metrics(metrics:dict,num_classes:int):
-    return MetricsFactory(metrics,num_classes)
+    return MetricsFactory(metrics, num_classes)

@@ -23,7 +23,7 @@ class Experiment:
         self.num_of_classes = len(self.classes)
         self.input_shape = self.trainset.get_random_sample_after_transform().shape
 
-        self.model = Model(config, self.input_shape, self.num_of_classes)
+        self.model = Model(config, self.input_shape, self.num_of_classes).to(utils.general_utils.device)
 
     def run(self):
         x = utils.general_utils.run_train_epoch(self.model, self.trainloader)

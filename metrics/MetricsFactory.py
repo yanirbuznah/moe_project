@@ -20,9 +20,8 @@ class MetricsFactory:
             else:
                 raise NotImplementedError(f"Metrics {metric} not implemented")
 
-    def __call__(self, y_pred, y_true):
-        y_pred = y_pred.argmax(dim=1)
-        self.update_metrics(y_pred, y_true)
+    def __call__(self, *args, **kwargs):
+        self.update_metrics(*args, **kwargs)
         return self.compute_metrics()
 
     def compute_metrics(self):
@@ -31,6 +30,6 @@ class MetricsFactory:
             results[metric.get_name()] = metric.compute()
         return results
 
-    def update_metrics(self, y_pred, y_true):
+    def update_metrics(self, *args, **kwargs):
         for metric in self.metrics_list:
-            metric(y_pred, y_true)
+            metric(*args, **kwargs)

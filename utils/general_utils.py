@@ -27,6 +27,7 @@ def run_train_epoch(model: Model, data_loader, scheduler=None):
         if scheduler is not None:
             scheduler.step()
         total_loss += loss.item()
+
     total_loss /= len(data_loader)
     print(f"Train loss: {total_loss}")
     return total_loss
