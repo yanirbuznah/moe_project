@@ -1,0 +1,29 @@
+transforms:
+  - type: RandomCrop
+    size: 32
+    padding: 4
+    padding_mode: reflect
+#  - type: RandomHorizontalFlip
+#    p: 0.5
+#  - type: RandomVerticalFlip
+#    p: 0.5
+#  - type: RandomRotation
+#    degrees: 15
+#    interpolation: bilinear
+#    center: null
+#    fill: 0
+#    expand: false
+#  - type: RandomResizedCrop
+#    size: 32
+#    scale: [0.08, 1.0]
+#    ratio: [0.75, 1.3333333333333333]
+#    interpolation: bilinear
+#  - type: ColorJitter
+#    brightness: 0.4
+#    contrast: 0.4
+#    saturation: 0.4
+#    hue: 0.1
+#  - type: RandomGrayscale
+#    p: 0.2
+
+# Path: configs\augmentation_configs\all_augmentations_config.yml

@@ -1,0 +1,25 @@
+log:
+  wandb_project_name: dummy_project
+  experiment_name: dummy_experiment
+  experiment_description: dummy_description
+
+# experiment: !include experiment_configs/experiment_config.yml
+
+dataloader: !include dataloader_configs/cifar10_dataloader_config.yml
+
+model:
+  model: !include model_configs/resnet18_config.yml
+  loss: !include loss_configs/cross_entropy_loss_config.yml
+  optimizer: Adam
+  lr: !!float 0.001
+
+metrics:
+    - Accuracy
+    - F1
+    - Precision
+    - Recall
+
+seed: 0
+epochs: 100
+
+# Path: configs\experiment_configs\dummy_config.yml

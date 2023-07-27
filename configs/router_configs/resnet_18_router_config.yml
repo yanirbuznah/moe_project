@@ -1,0 +1,36 @@
+backbone: resnet_18
+backbone_params:
+  input_size: None
+  output_size: None
+  init: xavier_uniform
+  dtype: torch.float32
+  add_extra: false
+  extra_params:
+    input_size: None # if None, will be set to output_size of backbone
+    hidden_sizes: [100, 100]
+    output_size: None # if None, will be set to the number of experts
+    init: xavier_uniform
+    dtype: torch.float32
+    activation: relu
+    dropout: 0.0
+    batch_norm: false
+    bias: true
+optimizer: adam
+optimizer_params:
+  lr: 0.001
+  weight_decay: 0.0
+  momentum: 0.0
+  alpha: 0.99
+  eps: 1e-06
+  lr_decay: 0.0
+  betas: [0.9, 0.999]
+
+save_model: true
+save_dir: saved_models/routers
+save_name: resnet_18
+save_period: 10
+load_model: false
+load_path: saved_models/routers/resnet_18.pt
+
+
+# Path: configs\router_configs\resnet_18_expert_config.yml

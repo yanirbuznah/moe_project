@@ -1,0 +1,18 @@
+dataset: tinyimagenet
+batch_size: 128
+transform: true
+transforms:
+  augmentations: !include augmentation_configs\all_augmentations_config.yml
+  ToTensor: null
+  Resize:
+    size: 32
+  Normalize:
+    mean: [0.4914, 0.4822, 0.4465]
+    std: [0.2023, 0.1994, 0.2010]
+    inplace: true
+
+  
+shuffle: true
+num_workers: 4
+
+# Path: configs\dataloader_configs\tinyimagenet_config.yml

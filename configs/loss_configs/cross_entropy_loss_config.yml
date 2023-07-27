@@ -1,0 +1,11 @@
+CrossEntropyLoss:
+  name: CrossEntropyLoss
+  scale: 1.0
+  params:
+    reduction: mean
+    weight: null
+    ignore_index: -100
+    size_average: null
+    reduce: null
+    label_smoothing: 0.0
+

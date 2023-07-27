@@ -1,0 +1,4 @@
+epochs: 100
+num_experts: 10
+k: 1
+alternate_epochs: 1

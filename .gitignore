@@ -1,0 +1,5 @@
+/venv/
+/.benchmarks/
+/.pytest_cache/
+/.vscode/
+/data/

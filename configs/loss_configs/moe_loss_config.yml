@@ -1,0 +1,11 @@
+MixtureOfExpertLoss:
+    CrossEntropyLoss: !inherit
+        from: CrossEntropyLoss
+        params:
+            reduction: mean
+            weight: null
+            ignore_index: -100
+            size_average: null
+            reduce: null
+            label_smoothing: 0.0
+

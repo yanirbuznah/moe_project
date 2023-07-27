@@ -1,0 +1,7 @@
+MSELoss:
+    name: MSELoss
+    scale: 1.0
+    params:
+      size_average: null
+      reduce: null
+      reduction: mean
