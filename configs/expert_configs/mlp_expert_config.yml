@@ -1,14 +1,12 @@
 type: mlp
 model_params:
-  input_size: None
   hidden_sizes: [100, 100]
-  output_size: None
   activation: relu
   dropout: 0.0
   batch_norm: false
   bias: true
-  init: xavier_uniform
-  dtype: torch.float32
+  init: xavier
+  dtype: float32
 optimizer_params:
   type: adam
   lr: 0.001

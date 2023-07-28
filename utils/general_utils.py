@@ -1,3 +1,4 @@
+import logging
 import os.path
 import random
 from datetime import datetime
@@ -8,6 +9,7 @@ from tqdm import tqdm
 
 from models.Model import Model
 
+logger = logging.getLogger(__name__)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
@@ -31,7 +33,7 @@ def run_train_epoch(model: Model, data_loader, scheduler=None)->float:
         total_loss += loss.item()
 
     total_loss /= len(data_loader)
-    print(f"Train loss: {total_loss}")
+    logger.debug(f"Train loss: {total_loss}")
     return total_loss
 
 
@@ -44,7 +46,7 @@ def evaluate(model: Model, data_loader)->dict:
             total_loss += model_evaluation['loss'].item()
     total_loss /= len(data_loader)
     model_evaluation['loss'] = total_loss
-    print(model_evaluation)
+    logger.debug(model_evaluation)
     return model_evaluation
 
 

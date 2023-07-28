@@ -8,7 +8,7 @@ log:
 dataloader: !include dataloader_configs/cifar10_dataloader_config.yml
 
 model:
-  model: !include model_configs/resnet18_config.yml
+  model: !include model_configs/moe_model_config.yml
   loss: !include loss_configs/cross_entropy_loss_config.yml
   optimizer: Adam
   lr: !!float 0.001

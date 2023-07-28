@@ -1,15 +1,12 @@
-backbone: mlp
-backbone_params:
-  input_size: None
+type: mlp
+model_params:
   hidden_sizes: [100, 100]
-  output_size: None
   activation: relu
   dropout: 0.0
   batch_norm: false
   bias: true
-  init: xavier_uniform
-  dtype: torch.float32
-optimizer: adam
+  init: xavier
+  dtype: float32
 optimizer_params:
   lr: 0.001
   weight_decay: 0.0

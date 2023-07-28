@@ -27,13 +27,14 @@ class Experiment:
 
         self.classes = self.trainset.classes
         self.num_of_classes = len(self.classes)
-        self.input_shape = self.trainset.get_random_sample_after_transform().shape
+        dummy_sample = self.trainset.get_random_sample_after_transform()
+        self.input_shape = dummy_sample.shape
 
         self.model = Model(config, self.input_shape, self.num_of_classes).to(utils.device)
+        self.model.reset_parameters(dummy_sample.view(1, -1))
         self._init_experiment_folder()
 
     def _init_experiment_folder(self):
-
         self.experiment_path = utils.get_experiment_path(self.config.get('log').get('experiment_name'))
         if not os.path.exists(self.experiment_path):
             os.makedirs(self.experiment_path)
@@ -44,12 +45,10 @@ class Experiment:
             logger.info(f"Epoch {epoch}")
             utils.run_train_epoch(self.model, self.trainloader)
             evaluate_result = utils.evaluate(self.model, self.testloader)
-            x = 4
             self.save_results_in_experiment_folder(epoch, evaluate_result)
 
     def save_results_in_experiment_folder(self, epoch, evaluate_result):
         results_csv = os.path.join(self.experiment_path, "results.csv")
         df = pd.DataFrame.from_dict(evaluate_result, orient='index').T
         df.insert(0, 'epoch', epoch)
-
         df.to_csv(results_csv, mode='a', header=not os.path.exists(results_csv), index=False)
