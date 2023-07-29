@@ -22,6 +22,8 @@ class MetricsFactory:
 
     def __call__(self, *args, **kwargs):
         self.update_metrics(*args, **kwargs)
+
+    def compute(self):
         return self.compute_metrics()
 
     def compute_metrics(self):
@@ -33,3 +35,7 @@ class MetricsFactory:
     def update_metrics(self, *args, **kwargs):
         for metric in self.metrics_list:
             metric(*args, **kwargs)
+
+    def reset(self):
+        for metric in self.metrics_list:
+            metric.reset()

@@ -32,9 +32,15 @@ class Model(nn.Module):
         x, y = x.to(self.device), y.to(self.device)
         output = self.forward(x)
         y_hat = output['output'] if isinstance(output, dict) else output
-        results = self.metrics(y_hat.argmax(1), y)
-        results['loss'] = self.criterion(y_hat, y)
-        return results
+        self.metrics(y_hat.argmax(1), y)
+        return self.criterion(y_hat, y)
+        # return results
+
+    def compute_metrics(self):
+        return self.metrics.compute()
+
+    def reset_metrics(self):
+        self.metrics.reset()
 
     def reset_parameters(self, input):
         if hasattr(self.model, 'reset_parameters'):

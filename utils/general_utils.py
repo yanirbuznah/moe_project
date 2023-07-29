@@ -38,13 +38,15 @@ def run_train_epoch(model: Model, data_loader, scheduler=None)->float:
 
 
 def evaluate(model: Model, data_loader)->dict:
+    model.reset_metrics()
     model.eval()
     total_loss = 0
     with torch.no_grad():
         for batch in tqdm(data_loader, desc="Evaluating"):
-            model_evaluation = model.evaluate(batch)
-            total_loss += model_evaluation['loss'].item()
+            loss = model.evaluate(batch)
+            total_loss += loss.item()
     total_loss /= len(data_loader)
+    model_evaluation = model.compute_metrics()
     model_evaluation['loss'] = total_loss
     logger.debug(model_evaluation)
     return model_evaluation
