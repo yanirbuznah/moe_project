@@ -9,7 +9,7 @@ class F1(Metric):
         y_pred, y_true = self._preprocess_args(*args)
         self.pred.extend(y_pred)
         self.true.extend(y_true)
-        return f1_score(self.true, self.pred, average='macro', zero_division=0) # TODO: average by configuration
+        # return f1_score(self.true, self.pred, average='macro', zero_division=0) # TODO: average by configuration
 
     def compute(self):
         return f1_score(self.true, self.pred, average='macro', zero_division=0)

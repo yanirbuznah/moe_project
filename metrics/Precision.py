@@ -10,7 +10,7 @@ class Precision(Metric):
         y_pred, y_true = self._preprocess_args(*args)
         self.pred.extend(y_pred)
         self.true.extend(y_true)
-        return precision_score(self.true, self.pred, average='macro', zero_division=0)
+        # return precision_score(self.true, self.pred, average='macro', zero_division=0)
 
     def compute(self):
         return precision_score(self.true, self.pred, average='macro', zero_division=0)
