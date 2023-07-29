@@ -31,7 +31,7 @@ class Experiment:
         self.input_shape = dummy_sample.shape
 
         self.model = Model(config, self.input_shape, self.num_of_classes).to(utils.device)
-        self.model.reset_parameters(dummy_sample.view(1, -1))
+        self.model.reset_parameters(dummy_sample.view(1, -1).to(utils.device))
         self._init_experiment_folder()
 
     def _init_experiment_folder(self):
@@ -44,6 +44,8 @@ class Experiment:
         for epoch in range(self.config['epochs']):
             logger.info(f"Epoch {epoch}")
             utils.run_train_epoch(self.model, self.trainloader)
+            train_eval_result = utils.evaluate(self.model, self.trainloader)
+            print(train_eval_result)
             evaluate_result = utils.evaluate(self.model, self.testloader)
             self.save_results_in_experiment_folder(epoch, evaluate_result)
 

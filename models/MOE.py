@@ -59,9 +59,9 @@ class MixtureOfExperts(nn.Module):
 
     def forward_supervised(self, x, *, router_phase=False):
         # get the routing probabilities
-        router_output = self.supervised_router_step(x, router_phase)
+        router_probs = self.supervised_router_step(x, router_phase)
 
-        router_probs = self.softmax(router_output)
+        # router_probs = self.softmax(router_output)
         router_probs_max, routes = torch.max(router_probs, dim=-1)
 
         # get the indexes of the samples for each expert
@@ -91,7 +91,10 @@ class MixtureOfExperts(nn.Module):
     def get_experts_output_from_indexes_list(self, indexes_list, x):
         experts_output = []
         for i in range(self.num_experts):
-            experts_output.append(self.experts[i](x[indexes_list[i], :]))
+            if len(indexes_list[i]) > 0:
+                experts_output.append(self.experts[i](x[indexes_list[i], :]))
+            else:
+                experts_output.append(x.new_zeros((0, self.output_size)))
 
         indexes_list = torch.cat(indexes_list, dim=0).to(x.device)
         experts_output = torch.cat(experts_output, dim=0).to(x.device)
