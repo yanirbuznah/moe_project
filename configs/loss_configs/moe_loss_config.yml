@@ -1,11 +1,5 @@
 MixtureOfExpertLoss:
-    CrossEntropyLoss: !inherit
-        from: CrossEntropyLoss
-        params:
-            reduction: mean
-            weight: null
-            ignore_index: -100
-            size_average: null
-            reduce: null
-            label_smoothing: 0.0
+    - CrossEntropyLoss: !include loss_configs/cross_entropy_loss_config.yml
+    - +
+    - MSELoss: !include loss_configs/mse_loss_config.yml
 
