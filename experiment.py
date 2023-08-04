@@ -34,6 +34,9 @@ class Experiment:
         self.model.reset_parameters(dummy_sample.view(1, -1).to(utils.device))
         self._init_experiment_folder()
 
+    def __repr__(self):
+        return f"Experiment: {self.config['log']['experiment_name']}"
+
     def _init_experiment_folder(self):
         self.experiment_path = utils.get_experiment_path(self.config.get('log').get('experiment_name'))
         if not os.path.exists(self.experiment_path):

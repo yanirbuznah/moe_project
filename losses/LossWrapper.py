@@ -1,7 +1,5 @@
-import torch
-from torch import nn
-
 from losses import utils
+from . import Loss
 
 
 class Operator:
@@ -19,28 +17,16 @@ class Operator:
         return self.__repr__()
 
 
-class LossWrapper:
-    def __init__(self, operator: str, losses: list):
+class LossWrapper(Loss):
+    def __init__(self, operator: str, losses: list, weights: list = None):
+        super().__init__()
         self.operator = Operator(operator)
         self.losses = losses
+        self.weights = weights if weights is not None else [1] * len(losses)
 
     def __call__(self, *args, **kwargs):
-        return self.operator(*[loss(*args, **kwargs) for loss in self.losses])
-
-    def __repr__(self):
-        return f' {self.operator.__repr__()} '.join([f'{loss.__repr__()}' for loss in self.losses])
-
-    def __str__(self):
-        return self.__repr__()
-
-
-class LossWrapperWithWeights(LossWrapper):
-    def __init__(self, operator: str, losses: list, weights: list):
-        super().__init__(operator, losses)
-        self.weights = weights
-
-    def __call__(self, *args, **kwargs):
-        return self.operator(*[weight * loss(*args, **kwargs) for weight, loss in zip(self.weights, self.losses)])
+        self.stat = self.operator(*[weight * loss(*args, **kwargs) for weight, loss in zip(self.weights, self.losses)])
+        return self.stat
 
     def __repr__(self):
         return f'{self.operator.__repr__()}'.join(
@@ -48,4 +34,3 @@ class LossWrapperWithWeights(LossWrapper):
 
     def __str__(self):
         return self.__repr__()
-

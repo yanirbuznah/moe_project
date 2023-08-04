@@ -8,7 +8,7 @@ log:
 dataloader: !include dataloader_configs/mnist_dataloader_config.yml
 
 model:
-  model: !include expert_configs/mlp_expert_config.yml
+  model: !include model_configs/moe_model_config.yml
   loss: !include loss_configs/moe_loss_config.yml
   optimizer: Adam
   lr: !!float 3e-4

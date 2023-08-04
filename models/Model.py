@@ -24,17 +24,20 @@ class Model(nn.Module):
         x, y = batch
         x, y = x.to(self.device), y.to(self.device)
         output = self.forward(x)
-        y_hat = output['output'] if isinstance(output, dict) else output
-        return self.criterion(y_hat, y)
+        if isinstance(output, torch.Tensor):
+            output = {'y_pred': output}
+        output['target'] = y
+        return self.criterion(**output)
 
     def evaluate(self, batch):
         x, y = batch
         x, y = x.to(self.device), y.to(self.device)
         output = self.forward(x)
-        y_hat = output['output'] if isinstance(output, dict) else output
-        self.metrics(y_hat.argmax(1), y)
-        return self.criterion(y_hat, y)
-        # return results
+        if isinstance(output, torch.Tensor):
+            output = {'output': output}
+        output['target'] = y
+        self.metrics(output['output'].argmax(1), y)
+        return self.criterion(**output)
 
     def compute_metrics(self):
         return self.metrics.compute()
@@ -45,3 +48,6 @@ class Model(nn.Module):
     def reset_parameters(self, input):
         if hasattr(self.model, 'reset_parameters'):
             self.model.reset_parameters(input)
+
+    def get_loss_repr(self):
+        return self.criterion.__repr__()

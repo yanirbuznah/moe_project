@@ -1,6 +1,5 @@
 CrossEntropyLoss:
   name: CrossEntropyLoss
-  scale: 1.0
   params:
     reduction: mean
     weight: null

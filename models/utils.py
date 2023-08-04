@@ -2,6 +2,7 @@ import torch
 import torchvision
 from torch import nn
 
+from losses import CrossEntropyLoss, MSELoss, L1Loss, SwitchLoadBalancingLoss, LossWrapper
 from metrics.MetricsFactory import MetricsFactory
 from models.MLP import MLP
 from models.MOE import MixtureOfExperts
@@ -51,13 +52,24 @@ def get_optimizer(model: nn.Module, optimizer: str = None, lr: float = None):
 
 
 def get_loss(loss: dict):
-    for key in loss.keys():
-        if key.lower() == 'crossentropyloss':
-            return nn.CrossEntropyLoss()
-        elif key.lower() == 'mseloss':
-            return nn.MSELoss()
+    for k, v in loss.items():
+        if v is None:
+            raise ValueError(f"Loss {k} is required")
+        if v['name'] == 'LossCombination':
+            operator = v['operator']
+            losses_list = [get_loss(l) for l in v['losses']]
+            weights_dict = v.get('weights', None)
+            return LossWrapper(operator, losses_list, weights_dict)
+        elif v['name'].lower() == 'crossentropyloss':
+            return CrossEntropyLoss(**v['params'])
+        elif v['name'].lower() == 'mseloss':
+            return MSELoss(**v['params'])
+        elif v['name'].lower() == 'l1loss':
+            return L1Loss(**v['params'])
+        elif v['name'].lower() == 'switchloadbalancingloss':
+            return SwitchLoadBalancingLoss()
         else:
-            raise NotImplementedError(f"Loss {key} not implemented")
+            raise NotImplementedError(f"Loss {k} not implemented")
 
 
 def get_metrics(metrics: dict, num_classes: int):
