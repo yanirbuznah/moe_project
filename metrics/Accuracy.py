@@ -1,21 +1,9 @@
-import torch
-
-from metrics.Metric import Metric
+from metrics.ClassificationMetric import ClassificationMetric
 
 
-class Accuracy(Metric):
+class Accuracy(ClassificationMetric):
     def __init__(self):
-        self.correct = 0
-        self.total = 0
-
-    def __call__(self, *args, **kwargs):
-        y_pred, y_true = args
-        self.correct += (y_pred == y_true).sum().item()
-        self.total += y_true.size(0)
+        super().__init__()
 
     def compute(self):
-        return self.correct / self.total
-
-    def reset(self):
-        self.correct = 0
-        self.total = 0
+        return sum([1 for p, t in zip(self.pred, self.true) if p == t]) / len(self.true)

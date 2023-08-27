@@ -2,13 +2,35 @@ import torch
 import torchvision
 from torch import nn
 
+from agents import dqn, ppo
+from agents.custom_env import CustomEnv
 from losses import CrossEntropyLoss, MSELoss, L1Loss, SwitchLoadBalancingLoss, LossWrapper
 from metrics.MetricsFactory import MetricsFactory
 from models.MLP import MLP
 from models.MOE import MixtureOfExperts
 
 
-def get_model(model_config: dict, output_shape, input_shape=None):
+def get_agent(model: MixtureOfExperts):
+    router_type = model.router_config['model_config']['model']
+    if router_type.lower() == 'dqn':
+        router = dqn.Agent(model)
+    elif router_type.lower() == 'ppo':
+        router = ppo.Agent(CustomEnv(), batch_size=args.batch_size,
+                           encoder=ut.get_expert(args.router_model, args.num_experts))
+    else:
+        raise NotImplementedError(f"RL Router type {router_type} is not implemented")
+    return router
+
+
+def get_router(model: MixtureOfExperts):
+    if 'rl' in model.router_config['type'].lower():
+        return get_agent(model)
+    else:
+        return get_model(model.router_config['model_config'], model.num_experts, model.input_shape_router)
+
+
+def get_model(config: dict, output_shape, train_set=None):
+    model_config = config['model'] if 'model' in config.keys() else config
     if model_config['type'] == 'resnet18':
         model = torchvision.models.resnet18(num_classes=output_shape)
         model.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
@@ -33,8 +55,10 @@ def get_model(model_config: dict, output_shape, input_shape=None):
         model = torchvision.models.vit_b_16(num_classes=output_shape, image_size=32)
     elif model_config['type'] == 'mlp':
         model = MLP(config=model_config, output_size=output_shape)
-    elif model_config['type'].lower() == 'mlp_moe':
-        model = MixtureOfExperts(config=model_config, input_size=input_shape, output_size=output_shape)
+    elif 'moe' in model_config['type'].lower():
+        model = MixtureOfExperts(config=config, output_size=output_shape, train_set=train_set)
+    elif model_config['type'] == 'dqn':
+        pass
     else:
         raise NotImplementedError(f"Model {model_config['type']} not implemented")
     return model

@@ -18,6 +18,10 @@ metrics:
     - F1
     - Precision
     - Recall
+    - ConfusionMatrix
+    - pvalue
+    - RouterVsRandomAcc
+    - ConfusionMatrix
 
 seed: 0
 epochs: 100

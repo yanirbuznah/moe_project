@@ -4,8 +4,7 @@ from . import Loss
 class SwitchLoadBalancingLoss(Loss):
     def __init__(self):
         super().__init__()
-        self.possible_route_probabilities = ['route_probabilities', 'route_prob', 'route_probs', 'router_probs']
-        self.possible_counts = ['counts']
+
 
     def __call__(self, *args, **kwargs):
         route_probabilities = next(

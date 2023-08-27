@@ -1,4 +1,4 @@
-type: resnet_18
+type: resnet18
 model_params:
   input_size: None
   output_size: None

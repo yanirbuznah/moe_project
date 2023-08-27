@@ -1,4 +1,4 @@
-backbone: resnet_18
+type: resnet_18
 backbone_params:
   input_size: None
   output_size: None

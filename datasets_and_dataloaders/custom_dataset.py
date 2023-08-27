@@ -58,6 +58,12 @@ class CustomDataset(Dataset):
         y = torch.LongTensor([self[i][1] for i in indices])
         return (X, y)
 
+    def get_random_mini_batch_after_transform(self, batch_size):
+        indices = random.sample(range(0, len(self.data)), batch_size)
+        X = torch.stack([self.get_transformed_tensor(i) for i in indices])
+        y = torch.LongTensor([self[i][1] for i in indices])
+        return (X, y)
+
     def get_random_sample_by_class(self, class_name):
         class_index = self.classes.index(class_name)
         class_indices = [i for i, x in enumerate(self.labels) if x == class_index]
@@ -71,3 +77,6 @@ class CustomDataset(Dataset):
     def get_random_sample_before_transform(self):
         index = random.randint(0, len(self.data) - 1)
         return self.get_original_tensor(index)
+
+    def get_input_shape(self):
+        return self.get_random_sample_after_transform().shape

@@ -1,4 +1,5 @@
 from metrics import *
+from metrics.MOEMetric import MOEMetric, PValue, ConfusionMatrix, RouterVSRandomAcc
 
 
 class MetricsFactory:
@@ -17,8 +18,16 @@ class MetricsFactory:
                 self.metrics_list.append(Recall())
             elif metric.lower() == 'f1':
                 self.metrics_list.append(F1())
+            elif metric.lower() == 'pvalue':
+                self.metrics_list.append(PValue())
+            elif metric.lower() == 'confusionmatrix':
+                self.metrics_list.append(ConfusionMatrix())
+            elif metric.lower() == 'routervsrandomacc':
+                self.metrics_list.append(RouterVSRandomAcc())
             else:
-                raise NotImplementedError(f"Metrics {metric} not implemented")
+                self.metrics_list.append(MOEMetric())
+            # else:
+            #     raise NotImplementedError(f"Metrics {metric} not implemented")
 
     def __call__(self, *args, **kwargs):
         self.update_metrics(*args, **kwargs)

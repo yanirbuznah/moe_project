@@ -7,8 +7,7 @@ class CrossEntropyLoss(Loss):
     def __init__(self, *args, **kwargs):
         super().__init__()
         self.loss = nn.CrossEntropyLoss(*args, **kwargs)
-        self.possible_y_pred = ['y_pred', 'output', 'y_hat', 'out']
-        self.possible_y_true = ['target', 'y_true']
+
 
     def __call__(self, *args, **kwargs):
         y_pred = next(kwargs[y_pred] for y_pred in self.possible_y_pred if y_pred in kwargs.keys())

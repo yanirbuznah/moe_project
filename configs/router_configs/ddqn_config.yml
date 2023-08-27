@@ -1,0 +1,17 @@
+type: RL
+model: DQN
+backbone: !include expert_configs/resnet_18_expert_config.yml
+reward_function: CrossEntropyProbabilitiesWithTanh
+alternate: 2
+hidden_dim: 128
+buffer_capacity: 10000
+batch_size: 64
+gamma: 0.99
+epsilon: 1.0
+lr: 0.001
+save_model: true
+save_dir: saved_models/routers
+save_name: mlp
+save_period: 10
+load_model: false
+load_path: saved_models/routers/mlp.pt

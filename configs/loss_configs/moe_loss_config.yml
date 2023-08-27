@@ -3,6 +3,6 @@ MixtureOfExpertLoss:
     operator: +
     losses:
         - !include loss_configs/cross_entropy_loss_config.yml
-        - !include loss_configs/switch_load_balancing_loss_config.yml
+#        - !include loss_configs/switch_load_balancing_loss_config.yml
     weights: [1.0, 0.01]
 

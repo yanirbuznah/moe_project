@@ -1,4 +1,4 @@
-backbone: vit_b_16
+type: vit_b_16
 backbone_params:
   input_size: None
   output_size: None

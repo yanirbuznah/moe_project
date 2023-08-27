@@ -7,32 +7,45 @@ import torch.utils.data as data
 
 import utils.general_utils as utils
 from datasets_and_dataloaders.custom_dataset import CustomDataset
+from models.MOE import MixtureOfExperts
 from models.Model import Model
 
 logger = logging.getLogger(__name__)
 
 
-class Experiment:
+class SingletonMeta(type):
+    _instances = {}
 
-    def __init__(self, config: dict):
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            cls._instances[cls] = super(SingletonMeta, cls).__call__(*args, **kwargs)
+        return cls._instances[cls]
+
+
+class Experiment(metaclass=SingletonMeta):
+    def __init__(self, config: dict = None):
+        if hasattr(self, 'initialized'):
+            return
+
         self.config = config
-        self.trainset = CustomDataset(config['dataloader'], train=True)
-        self.testset = CustomDataset(config['dataloader'], train=False)
+        self.train_set = CustomDataset(config['dataloader'], train=True)
+        self.test_set = CustomDataset(config['dataloader'], train=False)
 
-        self.trainloader = data.DataLoader(self.trainset, batch_size=config['dataloader']['batch_size'],
-                                           shuffle=config['dataloader']['shuffle'],
+        self.train_loader = data.DataLoader(self.train_set, batch_size=config['dataloader']['batch_size'],
+                                            shuffle=config['dataloader']['shuffle'],
+                                            num_workers=config['dataloader']['num_workers'])
+        self.test_loader = data.DataLoader(self.test_set, batch_size=config['dataloader']['batch_size'], shuffle=False,
                                            num_workers=config['dataloader']['num_workers'])
-        self.testloader = data.DataLoader(self.testset, batch_size=config['dataloader']['batch_size'], shuffle=False,
-                                          num_workers=config['dataloader']['num_workers'])
 
-        self.classes = self.trainset.classes
+        self.classes = self.train_set.classes
         self.num_of_classes = len(self.classes)
-        dummy_sample = self.trainset.get_random_sample_after_transform()
-        self.input_shape = dummy_sample.shape
+        dummy_sample = self.train_set.get_random_sample_after_transform()
 
-        self.model = Model(config, self.input_shape, self.num_of_classes).to(utils.device)
-        self.model.reset_parameters(dummy_sample.view(1, -1).to(utils.device))
+        self.model = Model(config, self.num_of_classes, self.train_set).to(utils.device)
+        self.model.reset_parameters(dummy_sample.view(1, *dummy_sample.shape).to(utils.device))
         self._init_experiment_folder()
+
+        self.initialized = True
 
     def __repr__(self):
         return f"Experiment: {self.config['log']['experiment_name']}"
@@ -43,14 +56,39 @@ class Experiment:
             os.makedirs(self.experiment_path)
         json.dump(self.config, open(os.path.join(self.experiment_path, "config.json"), 'w'), indent=4)
 
-    def run(self):
-        for epoch in range(self.config['epochs']):
+    def run_rl_combined_model(self, epochs=None):
+        epochs = epochs or self.config['epochs']
+        for epoch in range(epochs):
             logger.info(f"Epoch {epoch}")
-            utils.run_train_epoch(self.model, self.trainloader)
-            train_eval_result = utils.evaluate(self.model, self.trainloader)
+            # todo: check alternating training
+            utils.run_train_epoch(self.model, self.train_loader)
+            train_eval_result = utils.evaluate(self.model, self.train_loader)
             print(train_eval_result)
-            evaluate_result = utils.evaluate(self.model, self.testloader)
+            evaluate_result = utils.evaluate(self.model, self.test_loader)
             self.save_results_in_experiment_folder(epoch, evaluate_result)
+
+    def run_normal_model(self, epochs=None):
+        epochs = epochs or self.config['epochs']
+        for epoch in range(epochs):
+            logger.info(f"Epoch {epoch}")
+            utils.run_train_epoch(self.model, self.train_loader)
+            train_eval_result = utils.evaluate(self.model, self.train_loader)
+            print(train_eval_result)
+            evaluate_result = utils.evaluate(self.model, self.test_loader)
+            self.save_results_in_experiment_folder(epoch, evaluate_result)
+
+    def run(self):
+        if isinstance(self.model, MixtureOfExperts):
+            # TODO: add epochs by type
+            if self.model.unsupervised_router:
+                self.run_rl_combined_model(self.model.config['epochs'])
+            else:
+                self.run_normal_model(self.model.config['epochs'])
+
+
+        else:
+            self.run_normal_model()
+
 
     def save_results_in_experiment_folder(self, epoch, evaluate_result):
         results_csv = os.path.join(self.experiment_path, "results.csv")

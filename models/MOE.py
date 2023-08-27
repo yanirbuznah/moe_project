@@ -5,36 +5,45 @@ from . import utils
 
 
 class MixtureOfExperts(nn.Module):
-    def __init__(self, *, config, input_size, output_size):
+    def __init__(self, *, config, output_size, train_set=None):
         super().__init__()
-        self.alternate = config.get('alternate_epoch', 0)
-        self.num_experts = config['num_experts']
-        self.k = config.get('k', 1)
-        self.input_size = input_size
-        self.output_size = output_size
-        self.input_size_router = config.get('input_size_router', input_size)
+        self.config = config
+        model_config = config['model']
+        self.train_set = train_set
+        self.input_shape = train_set.get_input_shape()
+        self.alternate = model_config.get('alternate_epoch', 0)
+        self.num_experts = model_config['num_experts']
+        self.k = model_config.get('k', 1)
+        self.output_shape = output_size
+        self.input_shape_router = model_config.get('input_size_router', self.input_shape)
         self.experts = nn.ModuleList(
-            [utils.get_model(config['expert'], self.output_size) for _ in range(self.num_experts)])
+            [utils.get_model(model_config['expert'], self.output_shape) for _ in range(self.num_experts)])
 
-        self.unsupervised_router = not config['router'][0]['supervised']
-        self.router = utils.get_model(config['router'][0]['model_config'], self.num_experts)
+        self.unsupervised_router = not model_config['router'][0]['supervised']
+        self.router_config = model_config['router'][0]
+        self.router = utils.get_router(self)
 
         self.softmax = nn.Softmax(dim=-1)
-        self.encoder = utils.get_model(config['encoder'], output_shape=self.input_size_router) if config.get('encoder',
-                                                                                                             False) else nn.Identity()
+        self.encoder = utils.get_model(model_config['encoder'], output_shape=self.input_shape_router) if model_config.get('encoder',
+                                                                                                                          False) else nn.Identity()
+
+    @property
+    def device(self):
+        return next(self.parameters()).device
 
     def reset_parameters(self, input):
         for expert in self.experts:
-            expert.reset_parameters(input)
-        self.router.reset_parameters(input)
+            if hasattr(expert, 'reset_parameters'):
+                expert.reset_parameters(input)
+        if hasattr(self.router, 'reset_parameters'):
+            self.router.reset_parameters(input)
+
 
     def router_phase(self, router_phase):
         self._alternate_modules(router_phase)
 
     def unsupervised_router_step(self, x):
-        return self.unsupervised_router.act(x)  # .cpu())
-        # p = self.unsupervised_router.policy.get_probs(a)
-        # return p
+        return self.router.act(x)  # .cpu())
 
     def supervised_router_step(self, x, router_phase):
         # encode the input to linear space
@@ -77,7 +86,6 @@ class MixtureOfExperts(nn.Module):
         return {'output': output, 'router_probs': router_probs, 'counts': counts}
 
     def forward(self, x, *, router_phase=False):
-
         if self.unsupervised_router:
             return self.forward_unsupervised(x)
         else:
@@ -94,7 +102,7 @@ class MixtureOfExperts(nn.Module):
             if len(indexes_list[i]) > 0:
                 experts_output.append(self.experts[i](x[indexes_list[i], :]))
             else:
-                experts_output.append(x.new_zeros((0, self.output_size)))
+                experts_output.append(x.new_zeros((0, self.output_shape)))
 
         indexes_list = torch.cat(indexes_list, dim=0).to(x.device)
         experts_output = torch.cat(experts_output, dim=0).to(x.device)
@@ -118,3 +126,19 @@ class MixtureOfExperts(nn.Module):
             self.encoder.requires_grad_(False)
             for expert in self.experts:
                 expert.requires_grad_(True)
+
+
+    def init_weights(self):
+        for layer in self.layers:
+            if isinstance(layer, nn.Linear):
+                self.wight_init(layer.weight)
+                if layer.bias is not None:
+                    nn.init.zeros_(layer.bias)
+
+    def _reset_parameters(self, model, input):
+        self.forward(input)
+        for layer in model.layers:
+            if isinstance(layer, nn.Linear):
+                self.wight_init(layer.weight)
+                if layer.bias is not None:
+                    nn.init.zeros_(layer.bias)

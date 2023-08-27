@@ -2,17 +2,27 @@ from .utils import *
 
 
 class Model(nn.Module):
-    def __init__(self, config: dict, input_shape, output_shape):
+    def __init__(self, config: dict, output_shape, train_set=None):
         super().__init__()
+        self.config = config
         model_config: dict = config.get('model')
-        self.model = get_model(model_config.get('model'), output_shape, input_shape)
+        self.model = get_model(model_config, output_shape, train_set)
         self.optimizer = get_optimizer(self.model, model_config.get('optimizer'), model_config.get('lr'))
         self.criterion = get_loss(model_config.get('loss'))
         self.metrics = get_metrics(config.get('metrics'), output_shape)
+        self.train_set = train_set
 
     @property
     def device(self):
         return next(self.parameters()).device
+
+    @property
+    def train_set(self):
+        return self._train_set
+
+    @train_set.setter
+    def train_set(self, value):
+        self._train_set = value
 
     def forward(self, x):
         return self.model(x)
@@ -35,9 +45,12 @@ class Model(nn.Module):
         output = self.forward(x)
         if isinstance(output, torch.Tensor):
             output = {'output': output}
-        output['target'] = y
-        self.metrics(output['output'].argmax(1), y)
-        return self.criterion(**output)
+        kwargs = output.copy()
+        kwargs['target'] = y
+        kwargs['model'] = self.model
+        kwargs['input'] = x
+        self.metrics(**kwargs)
+        return self.criterion(**kwargs)
 
     def compute_metrics(self):
         return self.metrics.compute()
@@ -51,3 +64,5 @@ class Model(nn.Module):
 
     def get_loss_repr(self):
         return self.criterion.__repr__()
+
+
