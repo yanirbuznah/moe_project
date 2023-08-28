@@ -5,7 +5,7 @@ log:
 
 # experiment: !include experiment_configs/experiment_config.yml
 
-dataloader: !include dataloader_configs/mnist_dataloader_config.yml
+dataloader: !include dataloader_configs/cifar10_dataloader_config.yml
 
 model:
   model: !include model_configs/moe_model_config.yml
