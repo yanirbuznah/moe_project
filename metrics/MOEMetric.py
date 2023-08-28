@@ -25,7 +25,7 @@ class MOEMetric(Metric):
         random_routes = torch.randint(0, model.num_experts, (x.shape[0],), device=model.device)
         random_outputs = model.get_experts_output_from_indexes_list(model.get_indexes_list(random_routes), x).argmax(
             dim=-1)
-        self.gates = torch.cat((self.gates, kwargs['router_probs'].argmax(dim=-1)), dim=0)
+        self.gates = torch.cat((self.gates, routes), dim=0)
         self.model_index = torch.cat((self.model_index, routes), dim=0)
         self.correct = torch.cat((self.correct, (y_pred == y_true).long()), dim=0)
         self.random_correct = torch.cat((self.random_correct, (random_outputs == y_true).long()), dim=0)
@@ -36,12 +36,19 @@ class MOEMetric(Metric):
     def _parse_args(self, *args, **kwargs):
         y_pred = next(kwargs[y_pred] for y_pred in self.possible_y_pred if y_pred in kwargs.keys()).argmax(dim=-1)
         y_true = next(kwargs[y_true] for y_true in self.possible_y_true if y_true in kwargs.keys())
-        routes = next(kwargs[routes_probs] for routes_probs in self.possible_routes_probs if
-                      routes_probs in kwargs.keys()).argmax(dim=-1)
+        routes = self._get_routes(**kwargs)
         counts = next(kwargs[counts] for counts in self.possible_counts if counts in kwargs.keys())
         model = next(kwargs[model] for model in self.possible_model if model in kwargs.keys())
         x = next(kwargs[x] for x in self.possible_x if x in kwargs.keys())
         return y_pred, y_true, routes, counts, model, x
+
+    def _get_routes(self, **kwargs):
+        try:
+            return next(kwargs[routes] for routes in self.possible_routes if
+                        routes in kwargs.keys())
+        except StopIteration:
+            return next(kwargs[routes_probs] for routes_probs in self.possible_routes_probs if
+                        routes_probs in kwargs.keys()).argmax(dim=-1)
 
 
 class RouterVSRandomAcc(MOEMetric):

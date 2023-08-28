@@ -8,8 +8,9 @@ class Metric:
         self.possible_y_true = ['target', 'y_true']
         self.possible_x = ['x', 'input', 'inp', 'X', 'Input', 'Inp']
         self.possible_model = ['model', 'm', 'Model', 'M']
-        self.possible_routes_probs = ['router_probs', 'router', 'r', 'Router', 'R']
+        self.possible_routes_probs = ['router_probs', 'rp']
         self.possible_counts = ['count', 'cnt', 'c', 'Count', 'Cnt', 'C', 'Counts', 'Cnts', 'counts']
+        self.possible_routes = ['routes', 'route', 'r', 'Routes', 'Route', 'R']
 
     def __call__(self, *args, **kwargs):
         raise NotImplementedError

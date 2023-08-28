@@ -1,6 +1,6 @@
 type: RL
 model: DQN
-backbone: !include expert_configs/resnet_18_expert_config.yml
+backbone: !include expert_configs/mlp_expert_config.yml
 reward_function: CrossEntropyProbabilitiesWithTanh
 alternate: 2
 hidden_dim: 128

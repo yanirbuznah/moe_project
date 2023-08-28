@@ -1,15 +1,14 @@
 import random
-from collections import deque
 
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.nn import Identity
 
+import models.utils as ut
 from agents.custom_env import CustomEnv
 from models.MOE import MixtureOfExperts
-import models.utils as ut
+
 
 class DQN(nn.Module):
     def __init__(self, state_dim, action_dim, hidden_dim, encoder):
@@ -38,7 +37,7 @@ class ReplayBuffer:
 
     def append(self, state, action, reward):
         self.state = torch.cat([self.state, state.cpu()])
-        self.action = torch.cat([self.action,action.cpu()])
+        self.action = torch.cat([self.action, action.cpu()])
         self.reward = torch.cat([self.reward, reward.cpu()])
         # self.next_state = torch.cat([self.next_state, torch.FloatTensor(next_state)])
         if len(self.state) > self.capacity:
@@ -60,14 +59,13 @@ class ReplayBuffer:
         idxs = np.random.choice(len(self.state), size=batch_size, p=probs)
         return self.state[idxs].to(device), self.action[idxs].to(device), self.reward[idxs].to(device)
 
-
     def __len__(self):
         return len(self.state)
 
 
 class Agent:
 
-    def __init__(self, model:MixtureOfExperts):
+    def __init__(self, model: MixtureOfExperts):
         self.model = model
         self.config = model.router_config
         encoder = ut.get_model(self.config['model_config']['backbone'], model.num_experts)
@@ -86,10 +84,9 @@ class Agent:
         self.memory = ReplayBuffer(self.buffer_capacity)
         self.optimizer = optim.Adam(self.q_net.parameters(), lr=self.lr)
 
-
     def act(self, state):
         if random.uniform(0, 1) < self.epsilon:
-            return torch.randint(0, self.action_dim,(state.shape[0],)).to(self.model.device)
+            return torch.randint(0, self.action_dim, (state.shape[0],)).to(self.model.device)
         else:
             with torch.no_grad():
                 state = state.unsqueeze(0) if len(state.shape) == 3 else state
@@ -102,7 +99,8 @@ class Agent:
     def update(self):
         if len(self.memory) < self.batch_size:
             return
-        state_batch, action_batch, reward_batch = self.memory.sample_with_exponentially_smoothing(self.batch_size, self.model.device)
+        state_batch, action_batch, reward_batch = self.memory.sample_with_exponentially_smoothing(self.batch_size,5e-4,
+                                                                                                  self.model.device)
         self.update_by_batch(state_batch, action_batch, reward_batch)
 
     def update_by_batch(self, state_batch, action_batch, reward_batch):
@@ -120,7 +118,7 @@ class Agent:
     def update_target_net(self):
         self.target_net.load_state_dict(self.q_net.state_dict())
 
-    def learn(self,total_timesteps=5000):
+    def learn(self, total_timesteps=5000):
         rewards = 0
         self.epsilon = 1.0
         for episode in range(total_timesteps):
@@ -134,17 +132,18 @@ class Agent:
             # while not done:
             # one step in the environment
             action = self.act(state)
-            _, reward, _ , _ = self.env.step(action)
+            _, reward, _, _ = self.env.step(action)
             self.memory.append(state, action, reward)
             self.update()
             if episode % 10 == 0:
                 self.update_target_net()
             self.epsilon = max(0.01, self.epsilon * 0.95)
             rewards += (reward.mean().item())
-            print("\rEpisode: {}\{}, Epsilon: {},  mean Reward: {}".format(episode,total_timesteps ,round(self.epsilon,3),rewards / (episode+1)),  end="")
+            print("\rEpisode: {}\{}, Epsilon: {},  mean Reward: {}".format(episode, total_timesteps,
+                                                                           round(self.epsilon, 3),
+                                                                           rewards / (episode + 1)), end="")
         print("\n")
         # return rewards
-
 
 # def run_example():
 #     import gym

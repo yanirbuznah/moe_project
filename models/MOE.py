@@ -1,3 +1,6 @@
+import logging
+import traceback
+
 import torch
 from torch import nn
 
@@ -24,8 +27,9 @@ class MixtureOfExperts(nn.Module):
         self.router = utils.get_router(self)
 
         self.softmax = nn.Softmax(dim=-1)
-        self.encoder = utils.get_model(model_config['encoder'], output_shape=self.input_shape_router) if model_config.get('encoder',
-                                                                                                                          False) else nn.Identity()
+        self.encoder = utils.get_model(model_config['encoder'],
+                                       output_shape=self.input_shape_router) if model_config.get('encoder',
+                                                                                                 False) else nn.Identity()
 
     @property
     def device(self):
@@ -37,7 +41,6 @@ class MixtureOfExperts(nn.Module):
                 expert.reset_parameters(input)
         if hasattr(self.router, 'reset_parameters'):
             self.router.reset_parameters(input)
-
 
     def router_phase(self, router_phase):
         self._alternate_modules(router_phase)
@@ -65,6 +68,13 @@ class MixtureOfExperts(nn.Module):
         output = self.get_experts_output_from_indexes_list(indexes_list, x)
 
         return {'output': output, 'routes': routes, 'counts': counts}
+
+    def get_unsupervised_output(self, x, *, routes=None):
+        routes = self.unsupervised_router_step(x) if routes is None else routes
+
+        indexes_list = self.get_indexes_list(routes)
+
+        return self.get_experts_output_from_indexes_list(indexes_list, x)
 
     def forward_supervised(self, x, *, router_phase=False):
         # get the routing probabilities
@@ -127,7 +137,6 @@ class MixtureOfExperts(nn.Module):
             for expert in self.experts:
                 expert.requires_grad_(True)
 
-
     def init_weights(self):
         for layer in self.layers:
             if isinstance(layer, nn.Linear):
@@ -142,3 +151,11 @@ class MixtureOfExperts(nn.Module):
                 self.wight_init(layer.weight)
                 if layer.bias is not None:
                     nn.init.zeros_(layer.bias)
+
+    def train_router(self, total_timestamps=1000):
+        try:
+            self.router.learn(total_timesteps=total_timestamps)
+        except Exception as e:
+            logging.error("Error in training router: {}".format(e))
+            traceback.print_exc()
+            raise e

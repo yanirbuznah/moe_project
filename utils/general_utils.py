@@ -19,6 +19,24 @@ def set_seed(seed):
     np.random.seed(seed)
     random.seed(seed)
 
+def run_rl_train_epoch(model: Model, data_loader, scheduler=None)->float:
+    model.train()
+    total_loss = 0
+    pbar = tqdm(data_loader, desc='Training')
+    for batch in pbar:
+        model.optimizer.zero_grad()
+        loss = model.loss(batch)
+        loss.backward()
+        model.optimizer.step()
+        if scheduler is not None:
+            scheduler.step()
+        total_loss += loss.item()
+        pbar.set_postfix({'loss': model.get_loss_repr()})
+
+    total_loss /= len(data_loader)
+    logger.debug(f"Train loss: {total_loss}")
+    return total_loss
+
 
 def run_train_epoch(model: Model, data_loader, scheduler=None)->float:
     model.train()

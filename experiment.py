@@ -61,6 +61,7 @@ class Experiment(metaclass=SingletonMeta):
         for epoch in range(epochs):
             logger.info(f"Epoch {epoch}")
             # todo: check alternating training
+            self.model.model.train_router(500)
             utils.run_train_epoch(self.model, self.train_loader)
             train_eval_result = utils.evaluate(self.model, self.train_loader)
             print(train_eval_result)
@@ -78,14 +79,13 @@ class Experiment(metaclass=SingletonMeta):
             self.save_results_in_experiment_folder(epoch, evaluate_result)
 
     def run(self):
-        if isinstance(self.model, MixtureOfExperts):
+        model = self.model.model
+        if isinstance(model, MixtureOfExperts):
             # TODO: add epochs by type
-            if self.model.unsupervised_router:
+            if model.unsupervised_router:
                 self.run_rl_combined_model(self.model.config['epochs'])
             else:
                 self.run_normal_model(self.model.config['epochs'])
-
-
         else:
             self.run_normal_model()
 

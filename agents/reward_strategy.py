@@ -36,14 +36,14 @@ class RewardStrategy:
     def _get_output_from_model(self, action, model, sample):
         model.eval()
         with torch.no_grad():
-            x, y, action = sample[0].to(device), sample[1].to(device), action.to(device)
-            out = model.forward_unsupervised(x, routes=action)[0]
+            x, y, action = sample[0].to(model.device), sample[1].to(model.device), action.to(model.device)
+            out = model.get_unsupervised_output(x, routes=action)
         return out, y
 
     def _get_best_from_all_reward(self, sample, action, model):
         model.eval()
         with torch.no_grad():
-            x, y, action = sample[0].to(device), sample[1].to(device), action.to(device)
+            x, y, action = sample[0].to(model.device), sample[1].to(model.device), action.to(model.device)
             all_outs = [model.experts[i](x) for i in range(self.num_of_experts)]
             out = model.forward_unsupervised(x, routes=action)[0]
         all_outs_cross_entropy = [self.cf_entropy(all_outs[i], y) for i in range(self.num_of_experts)]
@@ -54,7 +54,7 @@ class RewardStrategy:
     def _get_diff_from_random_reward(self, sample, action, model):
         model.eval()
         with torch.no_grad():
-            x, y, action = sample[0].to(device), sample[1].to(device), action.to(device)
+            x, y, action = sample[0].to(model.device), sample[1].to(model.device), action.to(model.device)
             out = model.forward_unsupervised(x, routes=action)[0]
             random_out = model.experts[torch.randint(0, self.num_of_experts, (1,))](x)
         reward = self.cf_entropy(out, y) - self.cf_entropy(random_out, y)

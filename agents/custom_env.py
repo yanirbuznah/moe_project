@@ -3,7 +3,6 @@ import numpy as np
 import torch
 from torch import nn
 
-
 from agents.reward_strategy import RewardStrategy
 from models.MOE import MixtureOfExperts
 
@@ -12,7 +11,7 @@ from models.MOE import MixtureOfExperts
 
 
 class CustomEnv(gym.Env):
-    def __init__(self, model:MixtureOfExperts):
+    def __init__(self, model: MixtureOfExperts):
         self.action_space = gym.spaces.Discrete(model.num_experts)
         self.observation_space = gym.spaces.Box(low=-np.inf, high=np.inf, shape=model.input_shape, dtype=np.float32)
         self.num_of_experts = model.num_experts
@@ -22,7 +21,9 @@ class CustomEnv(gym.Env):
         self.sample = (0, 0, 0)
         self.last_actions = torch.zeros((100, self.num_of_experts))
         self.cf_entropy = nn.CrossEntropyLoss(reduction='none')
-        self.reward_function = RewardStrategy(model.router_config['model_config']['reward_function'], model.num_experts, model.output_shape).get_reward_function()
+        self.reward_function = RewardStrategy(model.router_config['model_config']['reward_function'], model.num_experts,
+                                              model.output_shape).get_reward_function()
+        self.batch_size = model.router_config['model_config']['batch_size']
 
     def step(self, action):
         reward = self.reward_function(self.sample, action, self.model)
@@ -30,7 +31,7 @@ class CustomEnv(gym.Env):
 
     def reset(self, x=0):
         self.model.eval()
-        self.sample = self.train_set.get_random_mini_batch_from_trainset()
+        self.sample = self.train_set.get_random_mini_batch_after_transform(self.batch_size)
         obs = self.model.encoder(self.sample[0].to(self.model.device))  # .detach().cpu().numpy()
         return obs
 
