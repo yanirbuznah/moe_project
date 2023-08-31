@@ -113,7 +113,7 @@ class RewardStrategy:
 
         acc = preds == y
         ce = 1 / self.cf_entropy(out, y)
-        rewards = [10 * self._tanh(ce,1) + acc[i] * self._tanh(load[action[i], y[i]], 5.5) * C[action[i], y[i]] for i in range(len(acc))]
+        rewards = [10 * self._tanh(ce[i],1) + acc[i] * self._tanh(load[action[i], y[i]], 5.5) * C[action[i], y[i]] for i in range(len(acc))]
         rewards = torch.stack(rewards) if isinstance(rewards[0], torch.Tensor) else torch.FloatTensor(rewards)
         return rewards
     def _acc_dot_probs_1_minus_prob(self, sample, action, model,out = None, y = None):
@@ -145,7 +145,7 @@ class RewardStrategy:
 
 
     def _tanh(self, x, alpha=2.5):
-        return np.tanh(alpha * x)
+        return torch.tanh(alpha * x)
 
 
 
