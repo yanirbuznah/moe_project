@@ -1,3 +1,5 @@
+import logging
+
 from .utils import *
 
 
@@ -6,18 +8,17 @@ class Model(nn.Module):
         super().__init__()
         self.config = config
         model_config: dict = config.get('model')
+        logging.info(f'Creating model {model_config.get("name")}')
         self.model = get_model(model_config, output_shape, train_set)
         self.optimizer = get_optimizer(self.model, model_config.get('optimizer'), model_config.get('lr'))
         self.criterion = get_loss(model_config.get('loss'))
         self.metrics = get_metrics(config.get('metrics'), output_shape)
         self.train_set = train_set
 
-
-    def to(self,device):
+    def to(self, device):
         self.model.to(device)
         super().to(device)
         return self
-
 
     @property
     def device(self):
@@ -71,5 +72,3 @@ class Model(nn.Module):
 
     def get_loss_repr(self):
         return self.criterion.__repr__()
-
-
