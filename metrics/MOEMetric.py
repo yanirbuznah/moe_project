@@ -40,7 +40,7 @@ class MOEMetric(Metric):
         counts = next(kwargs[counts] for counts in self.possible_counts if counts in kwargs.keys())
         model = next(kwargs[model] for model in self.possible_model if model in kwargs.keys())
         x = next(kwargs[x] for x in self.possible_x if x in kwargs.keys())
-        return y_pred.cpu(), y_true.cpu(), routes.cpu(), counts.cpu(), model, x.cpu()
+        return y_pred.cpu(), y_true.cpu(), routes.cpu(), counts.cpu(), model, x
 
     def _get_routes(self, **kwargs):
         try:
