@@ -31,6 +31,13 @@ class MixtureOfExperts(nn.Module):
                                        output_shape=self.input_shape_router) if model_config.get('encoder',
                                                                                                  False) else nn.Identity()
 
+    def to(self, device):
+        self.experts.to(device)
+        self.router.to(device)
+        self.encoder.to(device)
+        super().to(device)
+        return self
+
     @property
     def device(self):
         return next(self.parameters()).device

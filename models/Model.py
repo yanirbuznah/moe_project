@@ -12,6 +12,13 @@ class Model(nn.Module):
         self.metrics = get_metrics(config.get('metrics'), output_shape)
         self.train_set = train_set
 
+
+    def to(self,device):
+        self.model.to(device)
+        super().to(device)
+        return self
+
+
     @property
     def device(self):
         return next(self.parameters()).device

@@ -84,6 +84,11 @@ class Agent:
         self.memory = ReplayBuffer(self.buffer_capacity)
         self.optimizer = optim.Adam(self.q_net.parameters(), lr=self.lr)
 
+    def to(self, device):
+        self.q_net.to(device)
+        self.target_net.to(device)
+        return self
+
     def act(self, state):
         if random.uniform(0, 1) < self.epsilon:
             return torch.randint(0, self.action_dim, (state.shape[0],)).to(self.model.device)
