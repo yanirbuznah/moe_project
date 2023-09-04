@@ -56,6 +56,13 @@ class Experiment(metaclass=SingletonMeta):
             os.makedirs(self.experiment_path)
         json.dump(self.config, open(os.path.join(self.experiment_path, "config.json"), 'w'), indent=4)
 
+    def evaluate_and_save_results(self, epoch):
+        train_eval_result = utils.evaluate(self.model, self.train_loader)
+        evaluate_result = utils.evaluate(self.model, self.test_loader)
+        print(evaluate_result)
+        self.save_results_in_experiment_folder(epoch, train_eval_result, path='train_results.csv')
+        self.save_results_in_experiment_folder(epoch, evaluate_result, path='validate_results.csv')
+
     def run_rl_combined_model(self, epochs=None):
         epochs = epochs or self.config['epochs']
         for epoch in range(epochs):
@@ -63,20 +70,15 @@ class Experiment(metaclass=SingletonMeta):
             # todo: check alternating training
             self.model.model.train_router(500)
             utils.run_train_epoch(self.model, self.train_loader)
-            train_eval_result = utils.evaluate(self.model, self.train_loader)
-            evaluate_result = utils.evaluate(self.model, self.test_loader)
-            print(evaluate_result)
-            self.save_results_in_experiment_folder(epoch, evaluate_result)
+            self.evaluate_and_save_results(epoch)
+
 
     def run_normal_model(self, epochs=None):
         epochs = epochs or self.config['epochs']
         for epoch in range(epochs):
             logger.info(f"Epoch {epoch}")
             utils.run_train_epoch(self.model, self.train_loader)
-            train_eval_result = utils.evaluate(self.model, self.train_loader)
-            evaluate_result = utils.evaluate(self.model, self.test_loader)
-            print(evaluate_result)
-            self.save_results_in_experiment_folder(epoch, evaluate_result)
+            self.evaluate_and_save_results(epoch)
 
     def run(self):
         model = self.model.model
@@ -90,8 +92,8 @@ class Experiment(metaclass=SingletonMeta):
             self.run_normal_model()
 
 
-    def save_results_in_experiment_folder(self, epoch, evaluate_result):
-        results_csv = os.path.join(self.experiment_path, "results.csv")
+    def save_results_in_experiment_folder(self, epoch, evaluate_result,path='results.csv'):
+        results_csv = os.path.join(self.experiment_path, path)
         df = pd.DataFrame.from_dict(evaluate_result, orient='index').T
         df.insert(0, 'epoch', epoch)
         df.to_csv(results_csv, mode='a', header=not os.path.exists(results_csv), index=False)
