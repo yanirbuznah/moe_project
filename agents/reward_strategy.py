@@ -135,7 +135,7 @@ class RewardStrategy:
             load[routes[i], true_assignments[i]] += 1
 
         C = C / np.maximum(load, 1) #
-        load = load / load.sum(axis=0, keepdims=True)
+        load = load / np.maximum(load.sum(axis=0, keepdims=True), 1)
         return load, C
 
     # A: Aij = class j goes to expert i
