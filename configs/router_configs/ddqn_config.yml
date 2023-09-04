@@ -1,7 +1,7 @@
 type: RL
 model: DQN
 backbone: !include expert_configs/resnet18_expert_config.yml
-reward_function: CrossEntropyProbabilitiesWithTanh
+reward_function: AccWithTanh
 alternate: 2
 hidden_dim: 128
 buffer_capacity: 10000

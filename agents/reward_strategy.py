@@ -24,6 +24,8 @@ class RewardStrategy:
             return self._acc_dot_probs
         elif self.reward_type == 'CrossEntropyProbabilitiesWithTanh':
             return self.acc_and_ce_dot_probs_with_tanh
+        elif self.reward_type == 'AccWithTanh':
+            return self._acc_dot_probs_tanh
         else:
             raise NotImplementedError
 
