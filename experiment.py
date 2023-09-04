@@ -64,8 +64,8 @@ class Experiment(metaclass=SingletonMeta):
             self.model.model.train_router(500)
             utils.run_train_epoch(self.model, self.train_loader)
             train_eval_result = utils.evaluate(self.model, self.train_loader)
-            print(train_eval_result)
             evaluate_result = utils.evaluate(self.model, self.test_loader)
+            print(evaluate_result)
             self.save_results_in_experiment_folder(epoch, evaluate_result)
 
     def run_normal_model(self, epochs=None):
