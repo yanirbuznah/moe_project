@@ -4,15 +4,15 @@ from .utils import *
 
 
 class Model(nn.Module):
-    def __init__(self, config: dict, output_shape, train_set=None):
+    def __init__(self, config: dict, train_set=None):
         super().__init__()
         self.config = config
         model_config: dict = config.get('model')
         logging.info(f'Creating model {model_config.get("name")}')
-        self.model = get_model(model_config, output_shape, train_set)
+        self.model = get_model(model_config, train_set=train_set)
         self.optimizer = get_optimizer(self.model, model_config.get('optimizer'), model_config.get('lr'))
         self.criterion = get_loss(model_config.get('loss'))
-        self.metrics = get_metrics(config.get('metrics'), output_shape)
+        self.metrics = get_metrics(config.get('metrics'), train_set.get_number_of_classes())
         self.train_set = train_set
 
     def to(self, device):

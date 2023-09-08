@@ -80,3 +80,5 @@ class CustomDataset(Dataset):
 
     def get_input_shape(self):
         return self.get_random_sample_after_transform().shape
+    def get_number_of_classes(self):
+        return len(self.classes)

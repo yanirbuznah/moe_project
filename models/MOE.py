@@ -20,7 +20,7 @@ class MixtureOfExperts(nn.Module):
         self.output_shape = output_size
         self.input_shape_router = model_config.get('input_size_router', self.input_shape)
         self.experts = nn.ModuleList(
-            [utils.get_model(model_config['expert'], self.output_shape) for _ in range(self.num_experts)])
+            [utils.get_model(model_config['expert'], train_set=train_set) for _ in range(self.num_experts)])
 
         self.unsupervised_router = not model_config['router'][0]['supervised']
         self.router_config = model_config['router'][0]
@@ -160,7 +160,7 @@ class MixtureOfExperts(nn.Module):
                     nn.init.zeros_(layer.bias)
 
     def train_router(self, epoch):
-        if epoch % self.alternate:
+        if True or epoch % self.alternate:
             try:
                 self.router.learn()
             except Exception as e:

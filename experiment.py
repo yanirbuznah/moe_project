@@ -38,10 +38,9 @@ class Experiment(metaclass=SingletonMeta):
                                            num_workers=config['dataloader']['num_workers'])
 
         self.classes = self.train_set.classes
-        self.num_of_classes = len(self.classes)
         dummy_sample = self.train_set.get_random_sample_after_transform()
 
-        self.model = Model(config, self.num_of_classes, self.train_set).to(utils.device)
+        self.model = Model(config, self.train_set).to(utils.device)
         self.model.reset_parameters(dummy_sample.view(1, *dummy_sample.shape).to(utils.device))
         self._init_experiment_folder()
 

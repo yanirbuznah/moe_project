@@ -29,10 +29,20 @@ def get_router(model: MixtureOfExperts):
         return get_model(model.router_config['model_config'], model.num_experts, model.input_shape_router)
 
 
-def get_model(config: dict, output_shape, train_set=None):
+def get_output_shape(train_set=None, output_shape=None):
+    if train_set is not None:
+        return train_set.get_number_of_classes()
+    elif output_shape is not None:
+        return output_shape
+    else:
+        raise ValueError("Either train_set or output_shape must be provided")
+
+
+def get_model(config: dict,*, train_set=None, output_shape=None):
     if config is None:
         return nn.Identity()
     model_config = config['model'] if 'model' in config.keys() else config
+    output_shape = get_output_shape(train_set, output_shape)
     if model_config['type'] == 'resnet18':
         model = torchvision.models.resnet18(num_classes=output_shape)
         model.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)

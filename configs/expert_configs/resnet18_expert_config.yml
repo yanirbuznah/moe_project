@@ -1,7 +1,7 @@
 type: resnet18
 model_params:
   input_size: None
-  output_size: None
+  output_size: 5
   init: xavier_uniform
   dtype: torch.float32
 optimizer_params:
