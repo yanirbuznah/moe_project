@@ -79,6 +79,8 @@ class Agent:
         self.epsilon = self.config.get('epsilon', 1.0)
         self.lr = self.config.get('lr', 0.001)
         self.num_of_episodes = self.config.get('num_of_episodes', 500)
+        self.epsilon_decay = self.config.get('epsilon_decay', 0.999)
+        self.epsilon_min = self.config.get('epsilon_min', 0.01)
         self.q_net = DQN(self.state_dim, self.action_dim, self.hidden_dim, encoder).to(model.device)
         self.target_net = DQN(self.state_dim, self.action_dim, self.hidden_dim, encoder).to(model.device)
         self.target_net.load_state_dict(self.q_net.state_dict())
@@ -149,7 +151,7 @@ class Agent:
             self.update()
             if episode % 10 == 0:
                 self.update_target_net()
-            self.epsilon = max(0.01, self.epsilon * 0.95)
+            self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
             rewards += (reward.mean().item())
             print("\rEpisode: {}\{}, Epsilon: {},  mean Reward: {}".format(episode, self.num_of_episodes,
                                                                            round(self.epsilon, 3),
