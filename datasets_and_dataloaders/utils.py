@@ -32,7 +32,9 @@ def get_dataset(name: str, train_dataset: bool):
 def get_transforms_from_dict(transforms_dict_config: dict, train) -> transforms.Compose:
     transforms_list = []
     for transform_name, transform_params in transforms_dict_config.items():
-        if transform_name == 'ToTensor':
+        if transform_name == 'ToPILImage':
+            transforms_list.append(transforms.ToPILImage())
+        elif transform_name == 'ToTensor':
             transforms_list.append(transforms.ToTensor())
         elif transform_name == 'Normalize':
             transforms_list.append(transforms.Normalize(**transform_params))
@@ -51,7 +53,9 @@ def get_transforms_from_dict(transforms_dict_config: dict, train) -> transforms.
 def get_transform_from_list(transforms_list_config: list) -> list:
     transforms_list = []
     for transform in transforms_list_config:
-        if transform['type'] == 'ToTensor':
+        if transform['type'] == 'ToPILImage':
+            transforms_list.append(transforms.ToPILImage())
+        elif transform['type'] == 'ToTensor':
             transforms_list.append(transforms.ToTensor())
         elif transform['type'] == 'Normalize':
             transforms_list.append(transforms.Normalize(transform['mean'], transform['std']))
