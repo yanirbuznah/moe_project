@@ -67,8 +67,8 @@ class Agent:
 
     def __init__(self, model: MixtureOfExperts):
         self.model = model
-        self.config = model.router_config
-        encoder = ut.get_model(self.config['model_config']['backbone'], model.num_experts)
+        self.config = model.router_config['model_config']
+        encoder = ut.get_model(self.config.get('backbone',None), model.num_experts)
         self.env = CustomEnv(model)
         self.state_dim = torch.prod(torch.tensor(self.env.observation_space.shape)).item()
         self.action_dim = self.env.action_space.n
@@ -78,7 +78,7 @@ class Agent:
         self.gamma = self.config.get('gamma', 0.99)
         self.epsilon = self.config.get('epsilon', 1.0)
         self.lr = self.config.get('lr', 3e-4)
-        self.num_of_episodes = self.config.get('num_of_episodes', 100000)
+        self.num_of_episodes = self.config.get('num_of_episodes', 500)
         self.q_net = DQN(self.state_dim, self.action_dim, self.hidden_dim, encoder).to(model.device)
         self.target_net = DQN(self.state_dim, self.action_dim, self.hidden_dim, encoder).to(model.device)
         self.target_net.load_state_dict(self.q_net.state_dict())

@@ -30,6 +30,8 @@ def get_router(model: MixtureOfExperts):
 
 
 def get_model(config: dict, output_shape, train_set=None):
+    if config is None:
+        return nn.Identity()
     model_config = config['model'] if 'model' in config.keys() else config
     if model_config['type'] == 'resnet18':
         model = torchvision.models.resnet18(num_classes=output_shape)
