@@ -14,7 +14,7 @@ class MixtureOfExperts(nn.Module):
         model_config = config['model']
         self.train_set = train_set
         self.input_shape = train_set.get_input_shape()
-        self.alternate = model_config.get('alternate_epoch', 0)
+        self.alternate = model_config.get('alternate', 0)
         self.num_experts = model_config['num_experts']
         self.k = model_config.get('k', 1)
         self.output_shape = output_size
@@ -159,10 +159,11 @@ class MixtureOfExperts(nn.Module):
                 if layer.bias is not None:
                     nn.init.zeros_(layer.bias)
 
-    def train_router(self, total_timestamps=1000):
-        try:
-            self.router.learn(total_timesteps=total_timestamps)
-        except Exception as e:
-            logging.error("Error in training router: {}".format(e))
-            traceback.print_exc()
-            raise e
+    def train_router(self, epoch):
+        if epoch % self.alternate:
+            try:
+                self.router.learn()
+            except Exception as e:
+                logging.error("Error in training router: {}".format(e))
+                traceback.print_exc()
+                raise e

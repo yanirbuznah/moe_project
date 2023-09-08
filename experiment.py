@@ -67,8 +67,7 @@ class Experiment(metaclass=SingletonMeta):
         epochs = epochs or self.config['epochs']
         for epoch in range(epochs):
             logger.info(f"Epoch {epoch}")
-            # todo: check alternating training
-            self.model.model.train_router(500)
+            self.model.model.train_router(epoch)
             utils.run_train_epoch(self.model, self.train_loader)
             self.evaluate_and_save_results(epoch)
 

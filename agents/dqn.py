@@ -78,6 +78,7 @@ class Agent:
         self.gamma = self.config.get('gamma', 0.99)
         self.epsilon = self.config.get('epsilon', 1.0)
         self.lr = self.config.get('lr', 3e-4)
+        self.num_of_episodes = self.config.get('num_of_episodes', 100000)
         self.q_net = DQN(self.state_dim, self.action_dim, self.hidden_dim, encoder).to(model.device)
         self.target_net = DQN(self.state_dim, self.action_dim, self.hidden_dim, encoder).to(model.device)
         self.target_net.load_state_dict(self.q_net.state_dict())
@@ -123,10 +124,10 @@ class Agent:
     def update_target_net(self):
         self.target_net.load_state_dict(self.q_net.state_dict())
 
-    def learn(self, total_timesteps=5000):
+    def learn(self):
         rewards = 0
         self.epsilon = 1.0
-        for episode in range(total_timesteps):
+        for episode in range(self.num_of_episodes):
             state = self.env.reset()
             # if state is tensor convert to device
             if isinstance(state, torch.Tensor):
@@ -144,7 +145,7 @@ class Agent:
                 self.update_target_net()
             self.epsilon = max(0.01, self.epsilon * 0.95)
             rewards += (reward.mean().item())
-            print("\rEpisode: {}\{}, Epsilon: {},  mean Reward: {}".format(episode, total_timesteps,
+            print("\rEpisode: {}\{}, Epsilon: {},  mean Reward: {}".format(episode, self.num_of_episodes,
                                                                            round(self.epsilon, 3),
                                                                            rewards / (episode + 1)), end="")
         print("\n")
