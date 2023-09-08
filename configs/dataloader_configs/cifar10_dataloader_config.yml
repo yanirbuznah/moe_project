@@ -2,7 +2,7 @@ dataset: cifar10
 batch_size: 16
 transform: true
 transforms:
-  augmentations: !include augmentation_configs\all_augmentations_config.yml
+  augmentations: !include augmentation_configs/all_augmentations_config.yml
   ToTensor: null
   Resize:
     size: 32
