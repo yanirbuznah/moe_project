@@ -52,7 +52,7 @@ class ReplayBuffer:
 
     def sample_with_exponentially_smoothing(self, batch_size, alpha=0.0005, device='cpu'):
         # create a list of probabilities for each sample
-        probs = np.array([alpha * (1 - alpha) ** i for i in range(len(self.state))])
+        probs = np.array([alpha * (1 - alpha) ** i for i in range(len(self.state), 0, -1)])
         # normalize the probabilities
         probs = probs / probs.sum()
         # sample from the list of probabilities
