@@ -2,15 +2,18 @@ dataset: cifar100
 batch_size: 128
 transform: true
 transforms:
-  - type: ToTensor
-  - type: Normalize
-    mean: [0.5071, 0.4867, 0.4408]
-    std: [0.2675, 0.2565, 0.2761]
+  augmentations: !include augmentation_configs/all_augmentations_config.yml
+  ToTensor: null
+  Resize:
+    size: 32
+    antialias: true
+  Normalize:
+    mean: [0.4914, 0.4822, 0.4465]
+    std: [0.2023, 0.1994, 0.2010]
     inplace: true
-  augementations: !include augmentation_configs\all_augmentations_config.yml
 
 shuffle: true
-num_workers: 4
+num_workers: 1
 
-# Path: configs\dataloader_configs\cifar100_config.yml
+# Path: configs\dataloader_configs\cifar10_config.yml
     

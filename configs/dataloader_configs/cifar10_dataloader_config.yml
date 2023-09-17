@@ -1,5 +1,5 @@
 dataset: cifar10
-batch_size: 16
+batch_size: 64
 transform: true
 transforms:
   augmentations: !include augmentation_configs/all_augmentations_config.yml
