@@ -26,6 +26,8 @@ class RewardStrategy:
             return self.acc_and_ce_dot_probs_with_tanh
         elif self.reward_type == 'AccWithTanh':
             return self._acc_dot_probs_tanh
+        elif self.reward_type == 'CrossEntropyWithTanh':
+            return self._ce_dot_probs_tanh
         else:
             raise NotImplementedError
 
@@ -94,7 +96,8 @@ class RewardStrategy:
         load, C = self._get_C_matrix(preds,action.detach(),y)
 
         ce = 1 / self.cf_entropy(out, y)
-        rewards = [self._tanh(ce,0.01) * self._tanh(load[action[i], y[i]], 5.5) * C[action[i], y[i]] for i in range(len(ce))]
+        rewards = [ce[i] * self._tanh(load[action[i], y[i]], 5.5) * C[action[i], y[i]] for i in range(len(acc))]
+        # rewards = [self._tanh(ce,0.01) * self._tanh(load[action[i], y[i]], 5.5) * C[action[i], y[i]] for i in range(len(ce))]
         rewards = torch.stack(rewards) if isinstance(rewards[0], torch.Tensor) else torch.FloatTensor(rewards)
         return rewards
 
@@ -124,7 +127,8 @@ class RewardStrategy:
         load, C = self._get_C_matrix(preds,action.detach(), y)
         ce = self.cf_entropy(out, y)
         acc = preds == y
-        rewards = [-ce[i] * (1 - load[action[i], y[i]]) * C[action[i], y[i]] for i in range(len(acc))]
+
+        rewards = [acc[i] * (1 - load[action[i], y[i]]) * C[action[i], y[i]] for i in range(len(acc))]
         rewards = torch.stack(rewards) if isinstance(rewards[0], torch.Tensor) else torch.FloatTensor(rewards)
         return rewards
     def _get_C_matrix(self, preds, routes, true_assignments):
