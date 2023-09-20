@@ -94,9 +94,9 @@ class RewardStrategy:
         out, y = self._get_output_from_model(action, model, sample) if out is None else (out, y)
         preds = torch.argmax(out, dim=1)
         load, C = self._get_C_matrix(preds,action.detach(),y)
-
-        ce = 1 / self.cf_entropy(out, y)
-        rewards = [ce[i] * self._tanh(load[action[i], y[i]] * C[action[i], y[i]],5.5) for i in range(len(ce))]
+        acc = preds == y
+        ce = self.cf_entropy(out, y)
+        rewards = [-ce[i] + ( acc[i] * self._tanh(load[action[i], y[i]] * C[action[i], y[i]],5.5)) for i in range(len(ce))]
         # rewards = [self._tanh(ce,0.01) * self._tanh(load[action[i], y[i]], 5.5) * C[action[i], y[i]] for i in range(len(ce))]
         rewards = torch.stack(rewards) if isinstance(rewards[0], torch.Tensor) else torch.FloatTensor(rewards)
         return rewards
