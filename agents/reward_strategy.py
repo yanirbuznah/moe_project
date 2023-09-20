@@ -104,7 +104,7 @@ class RewardStrategy:
         load, C = self._get_C_matrix(preds,action.detach(), y)
 
         acc = preds == y
-        rewards = [acc[i] * self._tanh(load[action[i], y[i]], 5.5) * C[action[i], y[i]] for i in range(len(acc))]
+        rewards = [acc[i] * (self._tanh(load[action[i], y[i]] * C[action[i],y[i]],5.5) / load[action[i],y[i]]) for i in range(len(acc))]
         rewards = torch.stack(rewards) if isinstance(rewards[0], torch.Tensor) else torch.FloatTensor(rewards)
         return rewards
 
