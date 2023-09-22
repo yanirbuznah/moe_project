@@ -1,5 +1,5 @@
 transforms:
-  - type: ToPILImage
+
   - type: RandomCrop
     size: 32
     padding: 4

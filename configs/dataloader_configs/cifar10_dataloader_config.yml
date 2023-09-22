@@ -2,6 +2,8 @@ dataset: cifar10
 batch_size: 64
 transform: true
 transforms:
+  ToPILImage: null
+
   augmentations: !include augmentation_configs/all_augmentations_config.yml
   ToTensor: null
   Resize:
