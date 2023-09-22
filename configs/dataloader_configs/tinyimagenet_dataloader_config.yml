@@ -2,7 +2,7 @@ dataset: tinyimagenet
 batch_size: 128
 transform: true
 transforms:
-  augmentations: !include augmentation_configs\all_augmentations_config.yml
+  augmentations: !include augmentation_configs/all_augmentations_config.yml
   ToTensor: null
   Resize:
     size: 32
