@@ -1,0 +1,16 @@
+dataset: imagenet
+batch_size: 128
+transform: true
+transforms:
+  augmentations: !include augmentation_configs/all_augmentations_config.yml
+  ToTensor: null
+  Normalize:
+    mean: [0.485, 0.456, 0.406]
+    std: [0.229, 0.224, 0.225]
+    inplace: true
+
+shuffle: true
+num_workers: 1
+
+# Path: configs\dataloader_configs\cifar10_config.yml
+    
