@@ -10,10 +10,10 @@ from datasets_and_dataloaders import utils as dutils
 
 class CustomDataset(Dataset):
     def __init__(self, config: dict, train: bool):
-        self.dataset = dutils.get_dataset(config['dataset'], train)
+        self.data = dutils.get_dataset(config['dataset'], train)
         self.transform = dutils.get_transforms_from_dict(config['transforms'],train) if config['transform'] else None
-        self.classes = self.dataset.classes
-        self.labels = self.dataset.targets
+        self.classes = self.data.classes
+        self.labels = self.data.targets
 
         # try:
         #     self.data = dataset['image']
@@ -27,11 +27,11 @@ class CustomDataset(Dataset):
         #     self.data = [x.convert('RGB') for x in self.data]
 
     def __len__(self):
-        return len(self.dataset)
+        return len(self.data)
 
     def __getitem__(self, index):
-        x = self.dataset[index][0]
-        label = self.dataset[index][1]
+        x = self.data[index][0]
+        label = self.data[index][1]
         if self.transform:
             x = self.transform(x)
         return x, label
