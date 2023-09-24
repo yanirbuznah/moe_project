@@ -12,6 +12,9 @@ class CustomDataset(Dataset):
     def __init__(self, config: dict, train: bool):
         self.dataset = dutils.get_dataset(config['dataset'], train)
         self.transform = dutils.get_transforms_from_dict(config['transforms'],train) if config['transform'] else None
+        self.classes = self.dataset.classes
+        self.labels = self.dataset.targets
+
         # try:
         #     self.data = dataset['image']
         #     self.classes = dataset.features['label'].names
