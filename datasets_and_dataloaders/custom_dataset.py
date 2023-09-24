@@ -45,16 +45,16 @@ class CustomDataset(Dataset):
         return x, label
 
     def get_original_tensor(self, index):
-        return self.data[index]
+        return self.data[index][0]
 
     def get_transformed_tensor(self, index):
-        return self.transform(self.data[index])
+        return self.transform(self.data[index][0])
 
     def get_label(self, index):
-        return self.labels[index]
+        return self.data[index][1]
 
     def get_class(self, index):
-        return self.classes[self.labels[index]]
+        return self.classes[self.data[index][1]]
 
     def get_random_sample(self):
         index = random.randint(0, len(self.data) - 1)
