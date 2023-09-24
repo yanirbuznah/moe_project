@@ -2,6 +2,7 @@ import random
 
 import PIL
 import torch
+import torchvision
 from torch.utils.data import Dataset
 
 from datasets_and_dataloaders import utils as dutils
@@ -9,26 +10,30 @@ from datasets_and_dataloaders import utils as dutils
 
 class CustomDataset(Dataset):
     def __init__(self, config: dict, train: bool):
-        dataset = dutils.get_dataset(config['dataset'], train)
+        self.dataset = dutils.get_dataset(config['dataset'], train)
         self.transform = dutils.get_transforms_from_dict(config['transforms'],train) if config['transform'] else None
-        try:
-            self.data = dataset['image']
-            self.classes = dataset.features['label'].names
-            self.labels = dataset['label']
-        except:
-            self.data = dataset.data
-            self.classes = dataset.classes
-            self.labels = dataset.targets
-        if isinstance(self.data[0], PIL.Image.Image):
-            self.data = [x.convert('RGB') for x in self.data]
+        # try:
+        #     self.data = dataset['image']
+        #     self.classes = dataset.features['label'].names
+        #     self.labels = dataset['label']
+        # except:
+        #     self.data = dataset.data
+        #     self.classes = dataset.classes
+        #     self.labels = dataset.targets
+        # if isinstance(self.data[0], PIL.Image.Image):
+        #     self.data = [x.convert('RGB') for x in self.data]
 
     def __len__(self):
-        return len(self.data)
+        return len(self.dataset)
 
     def __getitem__(self, index):
-
+        x = self.dataset[index][0]
+        label = self.dataset[index][1]
+        if self.transform:
+            x = self.transform(x)
+        return x, label
         # apply the transform (if any) to the data tensor
-        x = self.transform(self.data[index])
+        x = self.transform(self.dataset)
 
         # get the label for this sample
         label = self.labels[index]
