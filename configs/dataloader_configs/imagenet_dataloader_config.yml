@@ -2,7 +2,10 @@ dataset: imagenet
 batch_size: 128
 transform: true
 transforms:
-  augmentations: !include augmentation_configs/all_augmentations_config.yml
+  augmentations: !include augmentation_configs/imagenet_augmentations_config.yml
+  Resize:
+    size: 224
+    antialias: true
   ToTensor: null
   Normalize:
     mean: [0.485, 0.456, 0.406]
