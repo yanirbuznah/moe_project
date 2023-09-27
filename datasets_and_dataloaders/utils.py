@@ -20,8 +20,8 @@ def get_dataset(name: str, train_dataset: bool):
         train = load_dataset('Maysee/tiny-imagenet', split='train')
         val = load_dataset('Maysee/tiny-imagenet', split='valid')
     elif name.lower() == 'imagenet':
-        train = torchvision.datasets.ImageNet(root='/dsi/shared/yanir',split='train')
-        val = torchvision.datasets.ImageNet(root='/dsi/shared/yanir', split='val')
+        train = torchvision.datasets.ImageNet(root=r'C:\Users\yanir\Desktop', split='val')
+        val = torchvision.datasets.ImageNet(root=r'C:\Users\yanir\Desktop', split='val')
     else:
         raise NotImplementedError(f"Dataset {name} not implemented")
     if train_dataset:
