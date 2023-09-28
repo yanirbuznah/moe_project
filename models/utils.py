@@ -45,8 +45,8 @@ def get_model(config: dict,*, train_set=None, output_shape=None):
     output_shape = get_output_shape(train_set, output_shape)
     if model_config['type'] == 'resnet18':
         model = torchvision.models.resnet18(num_classes=output_shape)
-        model.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
-        model.maxpool = nn.Identity()
+        # model.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
+        # model.maxpool = nn.Identity()
     elif model_config['type'] == 'resnet34':
         model = torchvision.models.resnet34(num_classes=output_shape)
         model.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
