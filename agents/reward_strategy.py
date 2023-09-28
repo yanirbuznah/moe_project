@@ -29,6 +29,7 @@ class RewardStrategy:
         elif self.reward_type == 'CrossEntropyWithTanh':
             return self._ce_dot_probs_tanh
         else:
+            return self._specialization_and_consistency
             raise NotImplementedError
 
     def _get_cross_entropy_loss_reward(self, sample, action, model):
@@ -131,15 +132,26 @@ class RewardStrategy:
         rewards = [acc[i] * (1 - load[action[i], y[i]]) * C[action[i], y[i]] for i in range(len(acc))]
         rewards = torch.stack(rewards) if isinstance(rewards[0], torch.Tensor) else torch.FloatTensor(rewards)
         return rewards
-    def _get_C_matrix(self, preds, routes, true_assignments):
-        C = np.zeros((self.num_of_experts, self.num_of_classes))
-        load = np.zeros((self.num_of_experts, self.num_of_classes))
-        for i in range(len(preds)):
-            C[routes[i], true_assignments[i]] += int(true_assignments[i] == preds[i])
-            load[routes[i], true_assignments[i]] += 1
 
-        C = C / np.maximum(load, 1) #
-        load = load / np.maximum(load.sum(axis=0, keepdims=True), 1)
+    def _specialization_and_consistency(self, sample, action, model, out = None, y = None):
+        out, y = self._get_output_from_model(action, model, sample) if out is None else (out, y)
+        preds = torch.argmax(out, dim=1)
+        consistency, specialization = self._get_C_matrix(preds,action.detach(), y)
+
+        acc = preds == y
+        rewards = [acc[i] * consistency[action[i], y[i]] * specialization[action[i],y[i]] / consistency[action[i]].sum() for i in range(len(acc))]
+        rewards = torch.stack(rewards) if isinstance(rewards[0], torch.Tensor) else torch.FloatTensor(rewards)
+        return rewards
+
+    def _get_C_matrix(self, preds, routes, true_assignments):
+        specialization = np.zeros((self.num_of_experts, self.num_of_classes))
+        consistency = np.zeros((self.num_of_experts, self.num_of_classes))
+        for i in range(len(preds)):
+            specialization[routes[i], true_assignments[i]] += int(true_assignments[i] == preds[i])
+            consistency[routes[i], true_assignments[i]] += 1
+
+        C = specialization / np.maximum(consistency, 1) #
+        load = consistency / np.maximum(consistency.sum(axis=0, keepdims=True), 1)
         return load, C
 
     # A: Aij = class j goes to expert i

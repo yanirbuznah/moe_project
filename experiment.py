@@ -62,32 +62,34 @@ class Experiment(metaclass=SingletonMeta):
         self.save_results_in_experiment_folder(epoch, train_eval_result, path='train_results.csv')
         self.save_results_in_experiment_folder(epoch, evaluate_result, path='validate_results.csv')
 
-    def run_rl_combined_model(self, epochs=None):
-        epochs = epochs or self.config['epochs']
-        for epoch in range(epochs):
-            logger.info(f"Epoch {epoch}")
-            self.model.model.train_router(epoch)
-            utils.run_train_epoch(self.model, self.train_loader)
-            self.evaluate_and_save_results(epoch)
+    def run_rl_combined_model(self, epoch):
+        logger.info(f"Epoch {epoch}")
+        self.model.model.train_router(epoch)
+        utils.run_train_epoch(self.model, self.train_loader)
+        self.evaluate_and_save_results(epoch)
 
 
-    def run_normal_model(self, epochs=None):
-        epochs = epochs or self.config['epochs']
-        for epoch in range(epochs):
+    def run_normal_model(self, epoch):
             logger.info(f"Epoch {epoch}")
             utils.run_train_epoch(self.model, self.train_loader)
             self.evaluate_and_save_results(epoch)
 
     def run(self):
         model = self.model.model
-        if isinstance(model, MixtureOfExperts):
-            # TODO: add epochs by type
-            if model.unsupervised_router:
-                self.run_rl_combined_model(self.model.config['epochs'])
+        for epoch in range(self.model.config['epochs']):
+            if isinstance(model, MixtureOfExperts):
+                rl_router = model.unsupervised_router
+                if rl_router and self.model.model.router_config['epochs']:
+                    self.run_rl_combined_model(epoch)
+                else:
+                    self.run_normal_model(epoch)
+                if not self.model.model.router_config.get('epochs')[0] <= epoch <= self.model.model.router_config.get('epochs')[1]:
+                    # change router
+                    pass
             else:
-                self.run_normal_model(self.model.config['epochs'])
-        else:
-            self.run_normal_model()
+                self.run_normal_model(epoch)
+
+
 
 
     def save_results_in_experiment_folder(self, epoch, evaluate_result,path='results.csv'):
