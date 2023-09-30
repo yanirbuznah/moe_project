@@ -90,8 +90,8 @@ class Experiment(metaclass=SingletonMeta):
                     # change router
                     pass
                 if epoch % 10 == 0 or epoch == self.model.config['epochs'] - 1:
-                    for expert in model.experts:
-                        print(f"Confusion Matrix for Expert {expert}")
+                    for i, expert in enumerate(model.experts):
+                        print(f"Confusion Matrix for Expert {i}")
                         cm = ConfusionMatrix.compute_from_y_pred_y_true(*utils.get_y_true_y_pred(expert, self.test_loader))
                         print(cm)
             else:
