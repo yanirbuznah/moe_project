@@ -20,5 +20,6 @@ class ClassificationMetric(Metric):
     def reset(self):
         self.pred = np.array([])
         self.true = np.array([])
+
     def compute(self):
         raise NotImplementedError

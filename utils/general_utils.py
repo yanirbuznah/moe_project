@@ -19,7 +19,8 @@ def set_seed(seed):
     np.random.seed(seed)
     random.seed(seed)
 
-def run_rl_train_epoch(model: Model, data_loader, scheduler=None)->float:
+
+def run_rl_train_epoch(model: Model, data_loader, scheduler=None) -> float:
     model.train()
     total_loss = 0
     pbar = tqdm(data_loader, desc='Training')
@@ -38,7 +39,7 @@ def run_rl_train_epoch(model: Model, data_loader, scheduler=None)->float:
     return total_loss
 
 
-def run_train_epoch(model: Model, data_loader, scheduler=None)->float:
+def run_train_epoch(model: Model, data_loader, scheduler=None) -> float:
     model.train()
     total_loss = 0
     pbar = tqdm(data_loader, desc='Training')
@@ -57,7 +58,7 @@ def run_train_epoch(model: Model, data_loader, scheduler=None)->float:
     return total_loss
 
 
-def evaluate(model: Model, data_loader)->dict:
+def evaluate(model: Model, data_loader) -> dict:
     model.reset_metrics()
     model.eval()
     total_loss = 0
@@ -71,6 +72,17 @@ def evaluate(model: Model, data_loader)->dict:
     logger.debug(model_evaluation)
     return model_evaluation
 
+
+def get_y_true_y_pred(model: torch.nn.Module, data_loader) -> (np.ndarray, np.ndarray):
+    model.eval()
+    y_true = []
+    y_pred = []
+    with torch.no_grad():
+        for x, y in data_loader:
+            x = x.to(device)
+            y_true.append(y)
+            y_pred.append(model(x).argmax(1).cpu())
+    return np.concatenate(y_true), np.concatenate(y_pred)
 
 def get_experiment_path(experiment_name) -> str:
     now = datetime.now()

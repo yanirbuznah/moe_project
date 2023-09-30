@@ -3,10 +3,12 @@ import logging
 import os
 
 import pandas as pd
+import torch.nn
 import torch.utils.data as data
 
 import utils.general_utils as utils
 from datasets_and_dataloaders.custom_dataset import CustomDataset
+from metrics import ConfusionMatrix
 from models.MOE import MixtureOfExperts
 from models.Model import Model
 
@@ -55,24 +57,24 @@ class Experiment(metaclass=SingletonMeta):
             os.makedirs(self.experiment_path)
         json.dump(self.config, open(os.path.join(self.experiment_path, "config.json"), 'w'), indent=4)
 
-    def evaluate_and_save_results(self, epoch):
-        train_eval_result = utils.evaluate(self.model, self.train_loader)
-        evaluate_result = utils.evaluate(self.model, self.test_loader)
+    def evaluate_and_save_results(self, epoch: int, model: torch.nn.Module, loader: data.DataLoader,
+                                  path: str = 'results.csv'):
+        evaluate_result = utils.evaluate(model, loader)
         print(evaluate_result)
-        self.save_results_in_experiment_folder(epoch, train_eval_result, path='train_results.csv')
-        self.save_results_in_experiment_folder(epoch, evaluate_result, path='validate_results.csv')
+        self.save_results_in_experiment_folder(epoch, evaluate_result, path=path)
 
     def run_rl_combined_model(self, epoch):
         logger.info(f"Epoch {epoch}")
-        self.model.model.train_router(epoch)
         utils.run_train_epoch(self.model, self.train_loader)
-        self.evaluate_and_save_results(epoch)
-
+        self.model.model.train_router(epoch)
+        self.evaluate_and_save_results(epoch, self.model, self.train_loader, path='train_results.csv')
+        self.evaluate_and_save_results(epoch, self.model, self.test_loader, path='test_results.csv')
 
     def run_normal_model(self, epoch):
-            logger.info(f"Epoch {epoch}")
-            utils.run_train_epoch(self.model, self.train_loader)
-            self.evaluate_and_save_results(epoch)
+        logger.info(f"Epoch {epoch}")
+        utils.run_train_epoch(self.model, self.train_loader)
+        self.evaluate_and_save_results(epoch, self.model, self.train_loader, path='train_results.csv')
+        self.evaluate_and_save_results(epoch, self.model, self.test_loader, path='test_results.csv')
 
     def run(self):
         model = self.model.model
@@ -83,16 +85,19 @@ class Experiment(metaclass=SingletonMeta):
                     self.run_rl_combined_model(epoch)
                 else:
                     self.run_normal_model(epoch)
-                if not self.model.model.router_config.get('epochs')[0] <= epoch <= self.model.model.router_config.get('epochs')[1]:
+                if not self.model.model.router_config.get('epochs')[0] <= epoch <= \
+                       self.model.model.router_config.get('epochs')[1]:
                     # change router
                     pass
+                if epoch % 10 == 0 or epoch == self.model.config['epochs'] - 1:
+                    for expert in model.experts:
+                        print(f"Confusion Matrix for Expert {expert}")
+                        cm = ConfusionMatrix.compute_from_y_pred_y_true(*utils.get_y_true_y_pred(expert, self.test_loader))
+                        print(cm)
             else:
                 self.run_normal_model(epoch)
 
-
-
-
-    def save_results_in_experiment_folder(self, epoch, evaluate_result,path='results.csv'):
+    def save_results_in_experiment_folder(self, epoch, evaluate_result, path='results.csv'):
         results_csv = os.path.join(self.experiment_path, path)
         df = pd.DataFrame.from_dict(evaluate_result, orient='index').T
         df.insert(0, 'epoch', epoch)

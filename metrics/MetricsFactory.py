@@ -1,5 +1,5 @@
 from metrics import *
-from metrics.MOEMetric import MOEMetric, PValue, ConfusionMatrix, RouterVSRandomAcc
+from metrics.MOEMetric import MOEMetric, PValue, MOEConfusionMatrix, RouterVSRandomAcc
 
 
 class MetricsFactory:
@@ -18,10 +18,12 @@ class MetricsFactory:
                 self.metrics_list.append(Recall())
             elif metric.lower() == 'f1':
                 self.metrics_list.append(F1())
-            elif metric.lower() == 'pvalue':
-                self.metrics_list.append(PValue())
             elif metric.lower() == 'confusionmatrix':
                 self.metrics_list.append(ConfusionMatrix())
+            elif metric.lower() == 'pvalue':
+                self.metrics_list.append(PValue())
+            elif metric.lower() == 'moeconfusionmatrix':
+                self.metrics_list.append(MOEConfusionMatrix())
             elif metric.lower() == 'routervsrandomacc':
                 self.metrics_list.append(RouterVSRandomAcc())
             else:

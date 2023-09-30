@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from scipy.stats import chi2_contingency
 from sklearn.metrics import confusion_matrix
-
+import pandas as pd
 from metrics.Metric import Metric
 
 
@@ -19,6 +19,7 @@ class MOEMetric(Metric):
         self.random_correct = torch.tensor([], dtype=torch.long)
         self.true = torch.tensor([], dtype=torch.long)
         self.num_experts = 0
+        self.class_names = []
 
     def __call__(self, *args, **kwargs):
         y_pred, y_true, routes, counts, model, x = self._parse_args(*args, **kwargs)
@@ -32,6 +33,7 @@ class MOEMetric(Metric):
         self.model_output_class = torch.cat((self.model_output_class, y_pred), dim=0)
         self.true = torch.cat((self.true, y_true), dim=0)
         self.num_experts = model.num_experts
+        self.class_names = model.train_set.classes
 
     def _parse_args(self, *args, **kwargs):
         y_pred = next(kwargs[y_pred] for y_pred in self.possible_y_pred if y_pred in kwargs.keys()).argmax(dim=-1)
@@ -58,9 +60,9 @@ class RouterVSRandomAcc(MOEMetric):
         return torch.Tensor([diff_mean, diff_std])
 
 
-class ConfusionMatrix(MOEMetric):
+class MOEConfusionMatrix(MOEMetric):
     def compute(self):
-        return confusion_matrix(self.true, self.gates)[:, :self.num_experts]
+        return pd.DataFrame(confusion_matrix(self.true, self.gates)[:, :self.num_experts], index=self.class_names)
 
 
 class PValue(MOEMetric):
