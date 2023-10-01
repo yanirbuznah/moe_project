@@ -22,6 +22,7 @@ metrics:
     - ConfusionMatrix
     - pvalue
     - RouterVsRandomAcc
+    - MOEConfusionMatrix
     - ConfusionMatrix
 
 seed: 0
