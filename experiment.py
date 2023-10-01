@@ -60,7 +60,7 @@ class Experiment(metaclass=SingletonMeta):
     def evaluate_and_save_results(self, epoch: int, model: torch.nn.Module, loader: data.DataLoader,
                                   path: str = 'results.csv'):
         evaluate_result = utils.evaluate(model, loader)
-        print(evaluate_result)
+        print(f"Epoch:{epoch}:\n{evaluate_result}")
         self.save_results_in_experiment_folder(epoch, evaluate_result, path=path)
 
     def run_rl_combined_model(self, epoch):
