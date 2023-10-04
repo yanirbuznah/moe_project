@@ -7,6 +7,7 @@ import numpy as np
 import torch
 from tqdm import tqdm
 
+from models import MOE
 from models.Model import Model
 
 logger = logging.getLogger(__name__)
@@ -82,6 +83,19 @@ def get_y_pred(model: torch.nn.Module, data_loader) -> (np.ndarray, np.ndarray):
             x = x.to(device)
             y_pred.append(model(x).argmax(1).cpu())
     return np.concatenate(y_pred)
+
+
+def get_y_pred_and_y_true_from_expert(model: MOE, data_loader, expert_index) -> (np.ndarray, np.ndarray):
+    model.eval()
+    y_true = []
+    y_pred = []
+    with torch.no_grad():
+        for x, y in data_loader:
+            x, y = x.to(device), y.to(device)
+            y_pred.append(model.experts[expert_index](model.encoder(x)).argmax(1).cpu())
+            y_true.append(y.cpu())
+    return np.concatenate(y_pred), np.concatenate(y_true)
+
 
 def get_experiment_path(experiment_name) -> str:
     now = datetime.now()
