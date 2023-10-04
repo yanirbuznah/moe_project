@@ -24,7 +24,7 @@ class MOEMetric(Metric):
     def __call__(self, *args, **kwargs):
         y_pred, y_true, routes, counts, model, x = self._parse_args(*args, **kwargs)
         random_routes = torch.randint(0, model.num_experts, (x.shape[0],), device=model.device)
-        random_outputs = model.get_experts_output_from_indexes_list(model.get_indexes_list(random_routes), x).argmax(
+        random_outputs = model.get_experts_output_from_indexes_list(model.get_indexes_list(random_routes), model.encoder(x)).argmax(
             dim=-1).cpu()
         self.gates = torch.cat((self.gates, routes), dim=0)
         self.model_index = torch.cat((self.model_index, routes), dim=0)
