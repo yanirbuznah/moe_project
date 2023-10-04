@@ -18,7 +18,7 @@ class MixtureOfExperts(nn.Module):
         self.num_experts = model_config['num_experts']
         self.k = model_config.get('k', 1)
         self.output_shape = output_size
-        self.input_shape_router = model_config.get('input_size_router', self.input_shape)
+        self.input_shape_router = model_config.get('input_shape_router', self.input_shape)
         self.experts = nn.ModuleList(
             [utils.get_model(model_config['expert'], train_set=train_set) for _ in range(self.num_experts)])
 
@@ -43,6 +43,9 @@ class MixtureOfExperts(nn.Module):
         return next(self.parameters()).device
 
     def reset_parameters(self, input):
+        if hasattr(self.encoder, 'reset_parameters'):
+            self.encoder.reset_parameters(input)
+        input = self.encoder(input)
         for expert in self.experts:
             if hasattr(expert, 'reset_parameters'):
                 expert.reset_parameters(input)
@@ -65,6 +68,7 @@ class MixtureOfExperts(nn.Module):
         return self.router(x_enc)
 
     def forward_unsupervised(self, x, *, routes=None):
+        x = self.encoder(x)
         # get the routing probabilities
         routes = self.unsupervised_router_step(x) if routes is None else routes
 

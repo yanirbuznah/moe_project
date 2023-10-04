@@ -124,6 +124,7 @@ class Agent:
             # next_q_values = self.target_net(next_state_batch)
             # next_q_values = next_q_values.max(1)[0]
             expected_q_values = reward_batch
+        # loss = nn.HuberLoss()(q_values, expected_q_values)
         loss = nn.MSELoss()(q_values, expected_q_values)
         self.optimizer.zero_grad()
         loss.backward()
