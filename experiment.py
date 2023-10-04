@@ -92,7 +92,7 @@ class Experiment(metaclass=SingletonMeta):
                 if epoch % 10 == 0 or epoch == self.model.config['epochs'] - 1:
                     for i, expert in enumerate(model.experts):
                         print(f"Confusion Matrix for Expert {i}")
-                        cm = ConfusionMatrix.compute_from_y_pred_y_true(**utils.get_y_pred_and_y_true_from_expert(model,self.test_loader,i))
+                        cm = ConfusionMatrix.compute_from_y_pred_y_true(*utils.get_y_pred_and_y_true_from_expert(model,self.test_loader,i))
                         print(cm)
             else:
                 self.run_normal_model(epoch)
