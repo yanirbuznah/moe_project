@@ -63,7 +63,7 @@ def get_model(config: dict,*, train_set=None, output_shape=None):
         model = torchvision.models.resnet152(num_classes=output_shape)
         model.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
         model.maxpool = nn.Identity()
-    elif model_config['type'] == 'vitb16':
+    elif model_config['type'] == 'vit_b_16':
         model = torchvision.models.vit_b_16(num_classes=output_shape, image_size=32)
     elif model_config['type'] == 'mlp':
         model = MLP(config=model_config, output_size=output_shape)
