@@ -90,9 +90,11 @@ class Experiment(metaclass=SingletonMeta):
                     # change router
                     pass
                 if epoch % 10 == 0 or epoch == self.model.config['epochs'] - 1:
+                    x, y_true = zip(*[batch for batch in self.test_set])
+                    x = model.encoder(torch.stack(x).to(utils.device))
                     for i, expert in enumerate(model.experts):
                         print(f"Confusion Matrix for Expert {i}")
-                        cm = ConfusionMatrix.compute_from_y_pred_y_true(*utils.get_y_true_y_pred(expert, self.test_loader))
+                        cm = ConfusionMatrix.compute_from_y_pred_y_true(expert(x).argmax(dim=1), torch.Tensor(y_true))
                         print(cm)
             else:
                 self.run_normal_model(epoch)
