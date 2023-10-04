@@ -94,7 +94,7 @@ class Experiment(metaclass=SingletonMeta):
                     x = model.encoder(torch.stack(x).to(utils.device))
                     for i, expert in enumerate(model.experts):
                         print(f"Confusion Matrix for Expert {i}")
-                        cm = ConfusionMatrix.compute_from_y_pred_y_true(expert(x).argmax(dim=1), torch.Tensor(y_true))
+                        cm = ConfusionMatrix.compute_from_y_pred_y_true(utils.get_y_pred(expert,x), torch.Tensor(y_true))
                         print(cm)
             else:
                 self.run_normal_model(epoch)

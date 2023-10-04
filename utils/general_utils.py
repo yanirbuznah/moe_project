@@ -73,16 +73,15 @@ def evaluate(model: Model, data_loader) -> dict:
     return model_evaluation
 
 
-def get_y_true_y_pred(model: torch.nn.Module, data_loader) -> (np.ndarray, np.ndarray):
+def get_y_pred(model: torch.nn.Module, data_loader) -> (np.ndarray, np.ndarray):
     model.eval()
     y_true = []
     y_pred = []
     with torch.no_grad():
-        for x, y in data_loader:
+        for x in data_loader:
             x = x.to(device)
-            y_true.append(y)
             y_pred.append(model(x).argmax(1).cpu())
-    return np.concatenate(y_true), np.concatenate(y_pred)
+    return np.concatenate(y_pred)
 
 def get_experiment_path(experiment_name) -> str:
     now = datetime.now()
