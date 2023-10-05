@@ -42,6 +42,7 @@ class RewardStrategy:
         model.eval()
         with torch.no_grad():
             x, y, action = sample[0].to(model.device), sample[1].to(model.device), action.to(model.device)
+            x = model.encoder(x)
             out = model.get_unsupervised_output(x, routes=action)
         return out, y
 
