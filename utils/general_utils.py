@@ -84,7 +84,7 @@ def get_y_pred(model: torch.nn.Module, data_loader) -> (np.ndarray, np.ndarray):
     return np.concatenate(y_pred)
 
 
-def get_y_pred_and_y_true_from_expert(model, data_loader, expert_index) -> (np.ndarray, np.ndarray):
+def get_y_true_and_y_pred_from_expert(model, data_loader, expert_index) -> (np.ndarray, np.ndarray):
     model.eval()
     y_true = []
     y_pred = []
@@ -93,7 +93,7 @@ def get_y_pred_and_y_true_from_expert(model, data_loader, expert_index) -> (np.n
             x, y = x.to(device), y.to(device)
             y_pred.append(model.experts[expert_index](model.encoder(x)).argmax(1).cpu())
             y_true.append(y.cpu())
-    return np.concatenate(y_pred), np.concatenate(y_true)
+    return np.concatenate(y_true), np.concatenate(y_pred)
 
 
 def get_experiment_path(experiment_name) -> str:

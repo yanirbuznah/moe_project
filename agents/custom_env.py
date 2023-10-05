@@ -32,7 +32,8 @@ class CustomEnv(gym.Env):
     def reset(self, x=0):
         self.model.eval()
         self.sample = self.train_set.get_random_mini_batch_after_transform(self.batch_size)
-        obs = self.model.encoder(self.sample[0].to(self.model.device))  # .detach().cpu().numpy()
+        with torch.no_grad():
+            obs = self.model.encoder(self.sample[0].to(self.model.device))
         return obs
 
     def get_reward_for_given_sample(self, sample, action, out=None):
