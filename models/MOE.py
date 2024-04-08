@@ -164,7 +164,7 @@ class MixtureOfExperts(nn.Module):
                     nn.init.zeros_(layer.bias)
 
     def train_router(self, epoch):
-        if epoch % self.alternate == 0 and epoch > self.alternate:
+        if True or epoch % self.alternate == 0 and epoch > self.alternate:
             try:
                 self.router.learn()
             except Exception as e:

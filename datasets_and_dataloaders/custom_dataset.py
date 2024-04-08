@@ -38,7 +38,7 @@ class CustomDataset(Dataset):
         # get the label for this sample
         label = self.labels[index]
 
-        super_label = self.superclasses_labels[index] if self.superclasses_labels is not None else None
+        super_label = self.superclasses_labels[index] if self.superclasses_labels is not None else -1
 
         # return the original tensor, the transformed tensor, and the label
         return x, label, super_label

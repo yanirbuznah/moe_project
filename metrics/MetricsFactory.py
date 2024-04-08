@@ -1,4 +1,5 @@
 from metrics import *
+from metrics.ClassificationMetric import ClassificationMetric
 from metrics.MOEMetric import MOEMetric, PValue, MOEConfusionMatrix, RouterVSRandomAcc, \
     ExpertEntropy, SuperClassEntropy
 
@@ -8,6 +9,8 @@ class MetricsFactory:
         self.metrics_list = []
         self.num_classes = num_classes
         self.generate_metrics(metrics)
+        self.classification_metrics = ClassificationMetric()
+        self.moe_metric = MOEMetric()
 
     def generate_metrics(self, metrics):
         for metric in metrics:
@@ -31,10 +34,10 @@ class MetricsFactory:
                 self.metrics_list.append(ExpertEntropy())
             elif metric.lower() == 'superclassentropy':
                 self.metrics_list.append(SuperClassEntropy())
-            else:
-                self.metrics_list.append(MOEMetric())
             # else:
-            #     raise NotImplementedError(f"Metrics {metric} not implemented")
+            #     self.metrics_list.append(MOEMetric())
+            else:
+                raise NotImplementedError(f"Metrics {metric} not implemented")
 
     def __call__(self, *args, **kwargs):
         self.update_metrics(*args, **kwargs)
@@ -49,8 +52,8 @@ class MetricsFactory:
         return results
 
     def update_metrics(self, *args, **kwargs):
-        for metric in self.metrics_list:
-            metric(*args, **kwargs)
+        self.classification_metrics(*args, **kwargs)
+        self.moe_metric(*args, **kwargs)
 
     def reset(self):
         for metric in self.metrics_list:

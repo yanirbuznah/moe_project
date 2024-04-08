@@ -5,9 +5,10 @@ from scipy.stats import chi2_contingency
 from sklearn.metrics import confusion_matrix
 
 from metrics.Metric import Metric
+from utils.singleton_meta import SingletonMeta
 
 
-class MOEMetric(Metric):
+class MoEMetricPreprocessor(Metric, metaclass=SingletonMeta):
     def __init__(self, ):
         super().__init__()
         self.reset()
@@ -68,6 +69,54 @@ class MOEMetric(Metric):
         except StopIteration:
             return self._get_attribute_from_args(self.possible_routes_probs, **kwargs).argmax(dim=-1)
 
+class MOEMetric(Metric, metaclass=SingletonMeta):
+    def __init__(self, ):
+        super().__init__()
+        self.moe_preprocessor = MoEMetricPreprocessor()
+        self.reset()
+
+    def reset(self):
+        self.moe_preprocessor.reset()
+
+    def __call__(self, *args, **kwargs):
+        self.moe_preprocessor(*args, **kwargs)
+
+    @property
+    def gates(self):
+        return self.moe_preprocessor.gates
+
+    @property
+    def model_index(self):
+        return self.moe_preprocessor.model_index
+
+    @property
+    def model_output_class(self):
+        return self.moe_preprocessor.model_output_class
+
+    @property
+    def correct(self):
+        return self.moe_preprocessor.correct
+
+    @property
+    def random_correct(self):
+        return self.moe_preprocessor.random_correct
+
+    @property
+    def labels(self):
+        return self.moe_preprocessor.labels
+
+    @property
+    def super_classes(self):
+        return self.moe_preprocessor.super_classes
+
+    @property
+    def num_experts(self):
+        return self.moe_preprocessor.num_experts
+
+    @property
+    def class_names(self):
+        return self.moe_preprocessor.class_names
+
 
 class RouterVSRandomAcc(MOEMetric):
     def compute(self):
@@ -119,10 +168,10 @@ class SuperClassEntropy(ExpertEntropy):
         if len(self.super_classes) == 0:
             return -1
         return self.calc_entropy(np.array(self.super_classes))
+
+
 class ExpertAccuracy(MOEMetric):
     def compute(self):
         if len(self.super_classes) == 0:
             return -1
         return sum([1 for p, t in zip(self.super_classes, self.gates) if p == t]) / len(self.super_classes)
-
-

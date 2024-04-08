@@ -2,9 +2,10 @@ import numpy as np
 import torch
 
 from metrics.Metric import Metric
+from utils.singleton_meta import SingletonMeta
 
 
-class ClassificationMetric(Metric):
+class ClassificationMetricPreprocessor(Metric, metaclass=SingletonMeta):
     def __init__(self):
         super().__init__()
         self.reset()
@@ -21,5 +22,23 @@ class ClassificationMetric(Metric):
         self.pred = np.array([])
         self.true = np.array([])
 
-    def compute(self):
-        raise NotImplementedError
+class ClassificationMetric(Metric):
+    def __init__(self):
+        super().__init__()
+        self.classification_preprocessor = ClassificationMetricPreprocessor()
+        self.reset()
+
+    def reset(self):
+        self.classification_preprocessor.reset()
+
+    def __call__(self, *args, **kwargs):
+        self.classification_preprocessor(*args, **kwargs)
+
+    @property
+    def pred(self):
+        return self.classification_preprocessor.pred
+
+    @property
+    def true(self):
+        return self.classification_preprocessor.true
+
