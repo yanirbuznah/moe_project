@@ -160,6 +160,8 @@ class ExpertEntropy(MOEMetric):
         experts_entropy = np.zeros(self.num_experts)
         for i in range(self.num_experts):
             experts_entropy[i] = -np.sum(p_g_l[i] * np.log2(p_g_l[i] + 1e-10))
+        max_entropy = -np.sum(1 / self.num_experts) * np.log2(1 / self.num_experts) * len(np.unique(labels))
+        experts_entropy = experts_entropy / max_entropy
         return experts_entropy
 
 
