@@ -48,7 +48,7 @@ class Model(nn.Module):
         return self.criterion(**output)
 
     def evaluate(self, batch):
-        x, y = batch
+        x, y, y_super = batch
         x, y = x.to(self.device), y.to(self.device)
         output = self.forward(x)
         if isinstance(output, torch.Tensor):
@@ -57,6 +57,7 @@ class Model(nn.Module):
         kwargs['target'] = y
         kwargs['model'] = self.model
         kwargs['input'] = x
+        kwargs['super_classes'] = y_super
         self.metrics(**kwargs)
         return self.criterion(**kwargs)
 

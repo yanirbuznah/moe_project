@@ -11,6 +11,7 @@ class CustomDataset(Dataset):
     def __init__(self, config: dict, train: bool):
         dataset = dutils.get_dataset(config['dataset'], train)
         self.transform = dutils.get_transforms_from_dict(config['transforms'],train) if config['transform'] else None
+        self.superclasses, self.superclasses_labels = None, None
         try:
             self.data = dataset['image']
             self.classes = dataset.features['label'].names
@@ -19,6 +20,10 @@ class CustomDataset(Dataset):
             self.data = dataset.data
             self.classes = dataset.classes
             self.labels = dataset.targets
+            if hasattr(dataset, 'superclasses'):
+                self.superclasses = dataset.superclasses
+                self.superclasses_labels = dataset.supertargets
+
         if isinstance(self.data[0], PIL.Image.Image):
             self.data = [x.convert('RGB') for x in self.data]
 
@@ -33,8 +38,10 @@ class CustomDataset(Dataset):
         # get the label for this sample
         label = self.labels[index]
 
+        super_label = self.superclasses_labels[index] if self.superclasses_labels is not None else None
+
         # return the original tensor, the transformed tensor, and the label
-        return x, label
+        return x, label, super_label
 
     def get_original_tensor(self, index):
         return self.data[index]

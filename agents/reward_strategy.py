@@ -141,7 +141,9 @@ class RewardStrategy:
         load = consistency.sum(axis=1)
         acc = preds == y
         pr_of_true_class = out[torch.arange(len(out)), y]
-        rewards = [acc[i] * consistency[action[i], y[i]] * specialization[action[i],y[i]] / load[action[i]] for i in range(len(acc))]
+        load_var = torch.var(load)
+        # rewards = [acc[i] * consistency[action[i], y[i]] * specialization[action[i],y[i]] / load[action[i]] for i in range(len(acc))]
+        rewards = [acc[i] * consistency[action[i], y[i]] * specialization[action[i],y[i]] * load_var for i in range(len(acc))]
         rewards = torch.stack(rewards) if isinstance(rewards[0], torch.Tensor) else torch.FloatTensor(rewards)
         return rewards
 
@@ -153,8 +155,8 @@ class RewardStrategy:
             consistency[routes[i], true_assignments[i]] += 1
 
         C = specialization / np.maximum(consistency, 1) #
-        load = consistency / np.maximum(consistency.sum(axis=0, keepdims=True), 1)
-        return load, C
+        consistency = consistency / np.maximum(consistency.sum(axis=0, keepdims=True), 1)
+        return consistency, C
 
     # A: Aij = class j goes to expert i
     def _get_A_matrix(self, true_assignments, routes):

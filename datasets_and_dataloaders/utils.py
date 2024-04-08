@@ -5,6 +5,8 @@ from datasets import load_dataset
 from torch import nn
 from torchvision.transforms import InterpolationMode
 
+from utils.cifar_loader import CIFAR100
+
 
 def get_dataset(name: str, train_dataset: bool):
     if name.lower() == 'mnist':
@@ -14,8 +16,8 @@ def get_dataset(name: str, train_dataset: bool):
         train = torchvision.datasets.CIFAR10(root='./data', train=True, download=True)
         val = torchvision.datasets.CIFAR10(root='./data', train=False, download=True)
     elif name.lower() == 'cifar100':
-        train = torchvision.datasets.CIFAR100(root='./data', train=True, download=True)
-        val = torchvision.datasets.CIFAR100(root='./data', train=False, download=True)
+        train = CIFAR100(root='./data', train=True, download=True)
+        val = CIFAR100(root='./data', train=False, download=True)
     elif name.lower() == 'tinyimagenet':
         train = load_dataset('Maysee/tiny-imagenet', split='train')
         val = load_dataset('Maysee/tiny-imagenet', split='valid')

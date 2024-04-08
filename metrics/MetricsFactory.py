@@ -1,5 +1,6 @@
 from metrics import *
-from metrics.MOEMetric import MOEMetric, PValue, MOEConfusionMatrix, RouterVSRandomAcc
+from metrics.MOEMetric import MOEMetric, PValue, MOEConfusionMatrix, RouterVSRandomAcc, \
+    ExpertEntropy, SuperClassEntropy
 
 
 class MetricsFactory:
@@ -26,6 +27,10 @@ class MetricsFactory:
                 self.metrics_list.append(MOEConfusionMatrix())
             elif metric.lower() == 'routervsrandomacc':
                 self.metrics_list.append(RouterVSRandomAcc())
+            elif metric.lower() == 'expertentropy':
+                self.metrics_list.append(ExpertEntropy())
+            elif metric.lower() == 'superclassentropy':
+                self.metrics_list.append(SuperClassEntropy())
             else:
                 self.metrics_list.append(MOEMetric())
             # else:
