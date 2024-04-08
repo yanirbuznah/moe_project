@@ -167,7 +167,7 @@ class ExpertEntropy(MOEMetric):
 
 class SuperClassEntropy(ExpertEntropy):
     def compute(self):
-        if len(self.super_classes) == 0:
+        if self.super_classes[0] == -1:
             return -1
         return self.calc_entropy(np.array(self.super_classes))
 
