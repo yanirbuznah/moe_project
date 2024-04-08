@@ -63,13 +63,10 @@ def evaluate(model: Model, data_loader) -> dict:
     model.eval()
     total_loss = 0
     with torch.no_grad():
-        x = 0
         for batch in tqdm(data_loader, desc="Evaluating"):
             loss = model.evaluate(batch)
             total_loss += loss.item()
-            x += 1
-            if x == 5:
-                break
+
     total_loss /= len(data_loader)
     model_evaluation = model.compute_metrics()
     model_evaluation['loss'] = total_loss
@@ -93,7 +90,7 @@ def get_y_true_and_y_pred_from_expert(model, data_loader, expert_index) -> (np.n
     y_true = []
     y_pred = []
     with torch.no_grad():
-        for x, y in data_loader:
+        for x, y, _ in data_loader:
             x, y = x.to(device), y.to(device)
             y_pred.append(model.experts[expert_index](model.encoder(x)).argmax(1).cpu())
             y_true.append(y.cpu())

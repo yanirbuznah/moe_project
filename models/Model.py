@@ -39,7 +39,7 @@ class Model(nn.Module):
         return self.model(x).argmax(dim=1)
 
     def loss(self, batch):
-        x, y = batch
+        x, y, _ = batch
         x, y = x.to(self.device), y.to(self.device)
         output = self.forward(x)
         if isinstance(output, torch.Tensor):
