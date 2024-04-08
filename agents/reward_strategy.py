@@ -138,7 +138,7 @@ class RewardStrategy:
         out, y = self._get_output_from_model(action, model, sample) if out is None else (out, y)
         preds = torch.argmax(out, dim=1)
         consistency, specialization = self._get_C_matrix(preds,action.detach(), y)
-        load = consistency.sum(axis=1)
+        load = torch.from_numpy(consistency.sum(axis=1), dtype=torch.float32)
         acc = preds == y
         pr_of_true_class = out[torch.arange(len(out)), y]
         load_var = torch.var(load)
