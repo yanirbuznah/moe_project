@@ -28,9 +28,10 @@ class RewardStrategy:
             return self._acc_dot_probs_tanh
         elif self.reward_type == 'CrossEntropyWithTanh':
             return self._ce_dot_probs_tanh
+        elif self.reward_type == 'SpecializationAndConsistency':
+            return self._specialization_and_consistency
         else:
             return self._specialization_and_consistency
-            raise NotImplementedError
 
     def _get_cross_entropy_loss_reward(self, sample, action, model):
         model.eval()
@@ -138,12 +139,15 @@ class RewardStrategy:
         out, y = self._get_output_from_model(action, model, sample) if out is None else (out, y)
         preds = torch.argmax(out, dim=1)
         consistency, specialization = self._get_C_matrix(preds,action.detach(), y)
-        load = torch.FloatTensor(consistency.sum(axis=1))
+        load = torch.FloatTensor(consistency.sum(axis=1)) / self.num_of_classes
         acc = preds == y
+        indices = y
+        output_of_true_class = out[torch.arange(len(out)), y]
         pr_of_true_class = out[torch.arange(len(out)), y]
         load_var = torch.var(load)
+        rewards = [output_of_true_class[i] * consistency[action[i], y[i]] * specialization[action[i],y[i]] / load[action[i]] for i in range(len(acc))]
         # rewards = [acc[i] * consistency[action[i], y[i]] * specialization[action[i],y[i]] / load[action[i]] for i in range(len(acc))]
-        rewards = [acc[i] * consistency[action[i], y[i]] * specialization[action[i],y[i]] * load_var for i in range(len(acc))]
+        # rewards = [acc[i] * consistency[action[i], y[i]] * specialization[action[i],y[i]] * load_var for i in range(len(acc))]
         rewards = torch.stack(rewards) if isinstance(rewards[0], torch.Tensor) else torch.FloatTensor(rewards)
         return rewards
 
@@ -154,9 +158,9 @@ class RewardStrategy:
             specialization[routes[i], true_assignments[i]] += int(true_assignments[i] == preds[i])
             consistency[routes[i], true_assignments[i]] += 1
 
-        C = specialization / np.maximum(consistency, 1) #
+        specialization = specialization / np.maximum(consistency, 1) #
         consistency = consistency / np.maximum(consistency.sum(axis=0, keepdims=True), 1)
-        return consistency, C
+        return consistency, specialization
 
     # A: Aij = class j goes to expert i
     def _get_A_matrix(self, true_assignments, routes):
