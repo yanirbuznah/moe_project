@@ -6,11 +6,11 @@ from datetime import datetime
 import numpy as np
 import torch
 from tqdm import tqdm
-
+from cuda_utils import get_unoccupied_device
 from models.Model import Model
 
 logger = logging.getLogger(__name__)
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = get_unoccupied_device()
 
 
 def set_seed(seed):
