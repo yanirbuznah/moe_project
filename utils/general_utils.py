@@ -6,8 +6,8 @@ from datetime import datetime
 import numpy as np
 import torch
 from tqdm import tqdm
-from cuda_utils import get_unoccupied_device
 from models.Model import Model
+from utils.cuda_utils import get_unoccupied_device
 
 logger = logging.getLogger(__name__)
 device = get_unoccupied_device()
