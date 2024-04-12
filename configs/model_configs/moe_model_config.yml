@@ -7,9 +7,9 @@ router:
     supervised: false
 
 
-encoder: !include expert_configs/resnet18_expert_config.yml
+#encoder: !include expert_configs/resnet18_expert_config.yml
 input_shape_router: 100
-expert: !include expert_configs/mlp_expert_config.yml
-num_experts: 2
+expert: !include expert_configs/resnet18_expert_config.yml
+num_experts: 1
 k: 1
 alternate: 1

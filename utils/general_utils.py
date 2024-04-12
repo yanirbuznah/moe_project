@@ -44,8 +44,8 @@ def run_train_epoch(model: Model, data_loader, scheduler=None) -> float:
     total_loss = 0
     pbar = tqdm(data_loader, desc='Training')
     for batch in pbar:
-        model.optimizer.zero_grad()
         loss = model.loss(batch)
+        model.optimizer.zero_grad()
         loss.backward()
         model.optimizer.step()
         if scheduler is not None:
