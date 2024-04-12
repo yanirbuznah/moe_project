@@ -1,4 +1,4 @@
-type: resnet18
+type: resnet1001
 model_params:
   input_size: None
   output_size: 5
@@ -7,8 +7,8 @@ model_params:
 optimizer_params:
   type: adam
   lr: 0.001
-  weight_decay: 1e-5
-  momentum: 0.9
+  weight_decay: 0.0
+  momentum: 0.0
   alpha: 0.99
   eps: 1e-06
   lr_decay: 0.0
@@ -16,9 +16,9 @@ optimizer_params:
 
 save_model: true
 save_dir: saved_models/experts
-save_name: resnet_18
+save_name: resnet_1001
 save_period: 10
 load_model: false
-load_path: saved_models/experts/resnet_18.pt
+load_path: saved_models/experts/resnet_1001.pt
 
-# Path: configs\expert_configs\resnet_18_expert_config.yml
+# Path: configs\expert_configs\resnet_1001_expert_config.yml

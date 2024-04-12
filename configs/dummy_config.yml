@@ -11,7 +11,7 @@ model:
   model: !include model_configs/moe_model_config.yml
   loss: !include loss_configs/moe_loss_config.yml
   optimizer: Adam
-  lr: !!float 3e-4
+  lr: !!float 0.001
 
 
 metrics:

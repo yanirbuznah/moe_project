@@ -31,7 +31,7 @@ class RewardStrategy:
         elif self.reward_type == 'SpecializationAndConsistency':
             return self._specialization_and_consistency
         else:
-            return self._specialization_and_consistency
+            return self._proposal_specialization_and_consistency
 
     def _get_cross_entropy_loss_reward(self, sample, action, model):
         model.eval()
@@ -151,6 +151,23 @@ class RewardStrategy:
         rewards = torch.stack(rewards) if isinstance(rewards[0], torch.Tensor) else torch.FloatTensor(rewards)
         return rewards
 
+
+    def _proposal_specialization_and_consistency(self, sample, action, model, out = None, y = None):
+        out, y = self._get_output_from_model(action, model, sample) if out is None else (out, y)
+        preds = torch.argmax(out, dim=1)
+        consistency, specialization = self._get_entropy_for_consistency(preds,action.detach(), y)
+        load = torch.FloatTensor(consistency.sum(axis=1)) / self.num_of_classes
+        acc = preds == y
+        indices = y
+        # output_of_true_class = out[torch
+
+    def _get_entropy_for_consistency(self, preds, routes, true_assignments):
+        consistency = np.zeros((self.num_of_experts, self.num_of_classes))
+        for i in range(len(preds)):
+            consistency[routes[i], true_assignments[i]] += 1
+        prob_consistency = consistency / np.maximum(consistency.sum(axis=0, keepdims=True), 1)
+        entropy = -np.sum(prob_consistency * np.log(prob_consistency + 1e-10), axis=1)
+        return entropy
     def _get_C_matrix(self, preds, routes, true_assignments):
         specialization = np.zeros((self.num_of_experts, self.num_of_classes))
         consistency = np.zeros((self.num_of_experts, self.num_of_classes))
@@ -172,6 +189,7 @@ class RewardStrategy:
 
     def _tanh(self, x, alpha=2.5):
         return np.tanh(alpha * x)
+
 
 
 

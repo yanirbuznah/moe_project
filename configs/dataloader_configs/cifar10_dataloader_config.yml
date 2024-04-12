@@ -1,5 +1,5 @@
 dataset: cifar10
-batch_size: 64
+batch_size: 256
 transform: true
 transforms:
   ToPILImage: null
