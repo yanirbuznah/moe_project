@@ -6,11 +6,11 @@ from datetime import datetime
 import numpy as np
 import torch
 from tqdm import tqdm
-
 from models.Model import Model
+from utils.cuda_utils import get_unoccupied_device
 
 logger = logging.getLogger(__name__)
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = get_unoccupied_device()
 
 
 def set_seed(seed):
@@ -44,8 +44,8 @@ def run_train_epoch(model: Model, data_loader, scheduler=None) -> float:
     total_loss = 0
     pbar = tqdm(data_loader, desc='Training')
     for batch in pbar:
-        model.optimizer.zero_grad()
         loss = model.loss(batch)
+        model.optimizer.zero_grad()
         loss.backward()
         model.optimizer.step()
         if scheduler is not None:
@@ -66,6 +66,7 @@ def evaluate(model: Model, data_loader) -> dict:
         for batch in tqdm(data_loader, desc="Evaluating"):
             loss = model.evaluate(batch)
             total_loss += loss.item()
+
     total_loss /= len(data_loader)
     model_evaluation = model.compute_metrics()
     model_evaluation['loss'] = total_loss
@@ -73,16 +74,28 @@ def evaluate(model: Model, data_loader) -> dict:
     return model_evaluation
 
 
-def get_y_true_y_pred(model: torch.nn.Module, data_loader) -> (np.ndarray, np.ndarray):
+def get_y_pred(model: torch.nn.Module, data_loader) -> (np.ndarray, np.ndarray):
     model.eval()
     y_true = []
     y_pred = []
     with torch.no_grad():
-        for x, y in data_loader:
+        for x in data_loader:
             x = x.to(device)
-            y_true.append(y)
             y_pred.append(model(x).argmax(1).cpu())
+    return np.concatenate(y_pred)
+
+
+def get_y_true_and_y_pred_from_expert(model, data_loader, expert_index) -> (np.ndarray, np.ndarray):
+    model.eval()
+    y_true = []
+    y_pred = []
+    with torch.no_grad():
+        for x, y, _ in data_loader:
+            x, y = x.to(device), y.to(device)
+            y_pred.append(model.experts[expert_index](model.encoder(x)).argmax(1).cpu())
+            y_true.append(y.cpu())
     return np.concatenate(y_true), np.concatenate(y_pred)
+
 
 def get_experiment_path(experiment_name) -> str:
     now = datetime.now()
