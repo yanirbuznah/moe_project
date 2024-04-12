@@ -8,5 +8,4 @@ torchvision
 Pillow
 numpy
 tqdm
-sklearn
 pyyaml-include
