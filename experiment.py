@@ -49,24 +49,26 @@ class Experiment(metaclass=SingletonMeta):
             os.makedirs(self.experiment_path)
         json.dump(self.config, open(os.path.join(self.experiment_path, "config.json"), 'w'), indent=4)
 
-    def evaluate_and_save_results(self, epoch: int, model: torch.nn.Module, loader: data.DataLoader,
-                                  path: str = 'results.csv'):
+    def evaluate_and_save_results(self, epoch: int, mode: str, model: torch.nn.Module):
+        loader = self.train_loader if mode == 'train' else self.test_loader
+        print(f"{mode} evaluation)")
         evaluate_result = utils.evaluate(model, loader)
-        print(f"Epoch:{epoch}:\n{evaluate_result}")
-        self.save_results_in_experiment_folder(epoch, evaluate_result, path=path)
+        print(evaluate_result)
+        self.save_results_in_experiment_folder(epoch, evaluate_result, path=f"{mode}_results.csv")
 
     def run_rl_combined_model(self, epoch):
         logger.info(f"Epoch {epoch}")
         utils.run_train_epoch(self.model, self.train_loader)
         self.model.model.train_router(epoch)
-        self.evaluate_and_save_results(epoch, self.model, self.train_loader, path='train_results.csv')
-        self.evaluate_and_save_results(epoch, self.model, self.test_loader, path='test_results.csv')
+        self.evaluate_and_save_results(epoch, mode='train', model = self.model.model)
+        self.evaluate_and_save_results(epoch, mode='test', model = self.model.model)
 
     def run_normal_model(self, epoch):
         logger.info(f"Epoch {epoch}")
         utils.run_train_epoch(self.model, self.train_loader)
-        self.evaluate_and_save_results(epoch, self.model, self.train_loader, path='train_results.csv')
-        self.evaluate_and_save_results(epoch, self.model, self.test_loader, path='test_results.csv')
+
+        self.evaluate_and_save_results(epoch, mode='train', model = self.model)
+        self.evaluate_and_save_results(epoch, mode='test', model = self.model)
 
     def run(self):
         model = self.model.model
@@ -84,12 +86,13 @@ class Experiment(metaclass=SingletonMeta):
                 if epoch % 10 == 0 or epoch == self.model.config['epochs'] - 1:
                     for i, expert in enumerate(model.experts):
                         print(f"Confusion Matrix for Expert {i}")
-                        cm = ConfusionMatrix.compute_from_y_pred_y_true(*utils.get_y_true_and_y_pred_from_expert(model,self.test_loader,i))
+                        cm = ConfusionMatrix.compute_from_y_pred_y_true(
+                            *utils.get_y_true_and_y_pred_from_expert(model, self.test_loader, i))
                         print(cm)
             else:
                 self.run_normal_model(epoch)
 
-    def save_results_in_experiment_folder(self, epoch, evaluate_result, path='results.csv'):
+    def save_results_in_experiment_folder(self, epoch, evaluate_result, path):
         results_csv = os.path.join(self.experiment_path, path)
         df = pd.DataFrame.from_dict(evaluate_result, orient='index').T
         df.insert(0, 'epoch', epoch)

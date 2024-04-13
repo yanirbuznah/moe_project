@@ -4,6 +4,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from tqdm import tqdm
 
 import models.utils as ut
 from agents.custom_env import CustomEnv
@@ -135,7 +136,8 @@ class Agent:
     def learn(self):
         rewards = 0
         self.epsilon = 1.0
-        for episode in range(self.num_of_episodes):
+        episode = 0
+        for episode in tqdm(range(self.num_of_episodes), desc=f"RL Training"):
             state = self.env.reset()
             # if state is tensor convert to device
             if isinstance(state, torch.Tensor):
@@ -153,10 +155,11 @@ class Agent:
                 self.update_target_net()
             self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
             rewards += (reward.mean().item())
-            print("\rEpisode: {}\{}, Epsilon: {},  mean Reward: {}".format(episode, self.num_of_episodes,
-                                                                           round(self.epsilon, 3),
-                                                                           rewards / (episode + 1)), end="")
-        print("\n")
+            tqdm.write(f"\rEpisode: {episode}, Epsilon: {round(self.epsilon, 3)},  mean Reward: {rewards / (episode + 1)}", end="")
+            # print("\rEpisode: {}\{}, Epsilon: {},  mean Reward: {}".format(episode, self.num_of_episodes,
+            #                                                                round(self.epsilon, 3),
+            #                                                                rewards / (episode + 1)), end="")
+        # print("\n")
         # return rewards
 
 # def run_example():

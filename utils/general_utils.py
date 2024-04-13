@@ -71,6 +71,7 @@ def evaluate(model: Model, data_loader) -> dict:
     model_evaluation = model.compute_metrics()
     model_evaluation['loss'] = total_loss
     logger.debug(model_evaluation)
+    print(model_evaluation)
     return model_evaluation
 
 

@@ -5,7 +5,7 @@ log:
 
 # experiment: !include experiment_configs/experiment_config.yml
 
-dataloader: !include dataloader_configs/cifar10_dataloader_config.yml
+dataloader: !include dataloader_configs/cifar100_dataloader_config.yml
 
 model:
   model: !include model_configs/moe_model_config.yml
@@ -15,6 +15,8 @@ model:
 
 
 metrics:
+    - MOEConfusionMatrix
+    - ConfusionMatrix
     - Accuracy
     - F1
     - Precision
@@ -22,8 +24,6 @@ metrics:
     - ConfusionMatrix
     - pvalue
 #    - RouterVsRandomAcc
-    - MOEConfusionMatrix
-    - ConfusionMatrix
     - ExpertEntropy
     - SuperClassEntropy
 
