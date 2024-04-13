@@ -1,7 +1,7 @@
 type: RL
 model: DQN
 
-backbone: null #!include expert_configs/mlp_expert_config.yml
+backbone: !include expert_configs/resnet18_expert_config.yml
 backbone_output_shape: 128
 
 reward_function: SpecializationAndConsistency

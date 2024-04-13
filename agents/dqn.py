@@ -11,19 +11,18 @@ from models.MOE import MixtureOfExperts
 
 
 class DQN(nn.Module):
-    def __init__(self, state_dim, action_dim, hidden_dim, encoder):
+    def __init__(self, state_dim, action_dim, hidden_dim, backbone):
         super(DQN, self).__init__()
-        self.encoder = encoder
+        self.backbone = backbone
         self.fc1 = nn.LazyLinear(hidden_dim)
-        self.fc2 = nn.LazyLinear(hidden_dim)
-        self.fc3 = nn.LazyLinear(action_dim)
+        self.fc2 = nn.LazyLinear(action_dim)
 
     def forward(self, x):
-        x = self.encoder(x)
+        x = self.backbone(x)
         x = x.view(x.size(0), -1)
-        x = torch.relu(self.fc1(x))
-        x = torch.relu(self.fc2(x))
-        x = self.fc3(x)
+        x = self.fc1(x)
+        x = torch.relu(x)
+        x = self.fc2(x)
         return x
 
 
@@ -68,7 +67,7 @@ class Agent:
     def __init__(self, model: MixtureOfExperts):
         self.model = model
         self.config = model.router_config['model_config']
-        encoder = self._get_encoder()
+        backbone = self._get_backbone()
         self.env = CustomEnv(model)
         self.state_dim = torch.prod(torch.tensor(self.env.observation_space.shape)).item()
         self.action_dim = self.env.action_space.n
@@ -81,17 +80,17 @@ class Agent:
         self.num_of_episodes = self.config.get('num_of_episodes', 500)
         self.epsilon_decay = self.config.get('epsilon_decay', 0.999)
         self.epsilon_min = self.config.get('epsilon_min', 0.01)
-        self.q_net = DQN(self.state_dim, self.action_dim, self.hidden_dim, encoder).to(model.device)
-        self.target_net = DQN(self.state_dim, self.action_dim, self.hidden_dim, encoder).to(model.device)
+        self.q_net = DQN(self.state_dim, self.action_dim, self.hidden_dim, backbone).to(model.device)
+        self.target_net = DQN(self.state_dim, self.action_dim, self.hidden_dim, backbone).to(model.device)
         self.target_net.load_state_dict(self.q_net.state_dict())
         self.memory = ReplayBuffer(self.buffer_capacity)
         self.optimizer = optim.Adam(self.q_net.parameters(), lr=self.lr)
 
-    def _get_encoder(self):
-        encoder_config = self.config.get('backbone', None)
+    def _get_backbone(self):
+        backbone_config = self.config.get('backbone', None)
         backbone_output_shape = self.config.get('backbone_output_shape', None)
-        encoder = ut.get_model(encoder_config, output_shape=backbone_output_shape)
-        return encoder
+        backbone = ut.get_model(backbone_config, output_shape=backbone_output_shape)
+        return backbone
 
     def to(self, device):
         self.q_net.to(device)
