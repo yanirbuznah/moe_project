@@ -60,8 +60,8 @@ class Experiment(metaclass=SingletonMeta):
         logger.info(f"Epoch {epoch}")
         utils.run_train_epoch(self.model, self.train_loader)
         self.model.model.train_router(epoch)
-        self.evaluate_and_save_results(epoch, mode='train', model = self.model.model)
-        self.evaluate_and_save_results(epoch, mode='test', model = self.model.model)
+        self.evaluate_and_save_results(epoch, mode='train', model = self.model)
+        self.evaluate_and_save_results(epoch, mode='test', model = self.model)
 
     def run_normal_model(self, epoch):
         logger.info(f"Epoch {epoch}")
