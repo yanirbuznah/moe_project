@@ -1,5 +1,9 @@
 import numpy as np
 import torch
+from torch import nn
+
+from models.MOE import MixtureOfExperts
+
 
 # from utils.general_utils import device
 
@@ -31,7 +35,7 @@ class RewardStrategy:
         elif self.reward_type == 'SpecializationAndConsistency':
             return self._specialization_and_consistency
         else:
-            return self._proposal_specialization_and_consistency
+            return self._noa_reward
 
     def _get_cross_entropy_loss_reward(self, sample, action, model):
         model.eval()
@@ -46,6 +50,15 @@ class RewardStrategy:
             x = model.encoder(x)
             out = model.get_unsupervised_output(x, routes=action)
         return out, y
+
+    def _get_probs_from_model(self, model, sample):
+        model.eval()
+        with torch.no_grad():
+            x = sample[0].to(model.device)
+            x = model.encoder(x)
+            out = model.router(x)
+        return out
+
 
     def _get_best_from_all_reward(self, sample, action, model):
         model.eval()
@@ -160,6 +173,25 @@ class RewardStrategy:
         acc = preds == y
         indices = y
         # output_of_true_class = out[torch
+
+
+    def _noa_reward(self, sample, action, model:MixtureOfExperts, out = None, y = None):
+        probs = self._get_probs_from_model(model, sample)
+        topk = torch.topk(probs, 3, dim=1)
+        max_probs, preds = torch.max(probs, dim=1)
+        out, y = self._get_output_from_model(preds, model, sample) if out is None else (out, y)
+        out = nn.functional.softmax(out, dim=1)
+
+        current = max_probs * out[torch.arange(len(out)), y]
+        out1, _ = self._get_output_from_model(topk.indices[:,1], model, sample)
+        out1 = nn.functional.softmax(out1, dim=1)
+        out2, _ = self._get_output_from_model(topk.indices[:,2], model, sample)
+        out2 = nn.functional.softmax(out2, dim=1)
+        out_all = torch.stack([out, out1, out2])
+        preds_on_right = out_all[:, torch.arange(len(out)), y]
+        best_pred, _ = torch.max(preds_on_right, dim=0)
+        regret = best_pred - current
+        return  -1 * regret
 
     def _get_entropy_for_consistency(self, preds, routes, true_assignments):
         consistency = np.zeros((self.num_of_experts, self.num_of_classes))

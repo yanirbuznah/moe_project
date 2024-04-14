@@ -87,6 +87,9 @@ class Agent:
         self.memory = ReplayBuffer(self.buffer_capacity)
         self.optimizer = optim.Adam(self.q_net.parameters(), lr=self.lr)
 
+    def __call__(self, *args, **kwargs):
+        return nn.Softmax(dim=1)(self.q_net(*args, **kwargs))
+        # return self.q_net(*args, **kwargs)
     def _get_backbone(self):
         backbone_config = self.config.get('backbone', None)
         backbone_output_shape = self.config.get('backbone_output_shape', None)

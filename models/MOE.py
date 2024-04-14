@@ -81,9 +81,9 @@ class MixtureOfExperts(nn.Module):
         return {'output': output, 'routes': routes, 'counts': counts}
 
     def get_unsupervised_output(self, x, *, routes=None):
-        routes = self.unsupervised_router_step(x) if routes is None else routes
+        self.routes = self.unsupervised_router_step(x) if routes is None else routes
 
-        indexes_list = self.get_indexes_list(routes)
+        indexes_list = self.get_indexes_list(self.routes)
 
         return self.get_experts_output_from_indexes_list(indexes_list, x)
 
@@ -164,7 +164,7 @@ class MixtureOfExperts(nn.Module):
                     nn.init.zeros_(layer.bias)
 
     def train_router(self, epoch):
-        if epoch % self.alternate == 0 and epoch > self.alternate:
+        if True or epoch % self.alternate == 0 and epoch > self.alternate:
             try:
                 self.router.learn()
             except Exception as e:
