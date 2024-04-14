@@ -1,8 +1,8 @@
 import json
 import logging
 import os
+from typing import Dict
 
-import pandas as pd
 import torch.nn
 import torch.utils.data as data
 
@@ -54,21 +54,21 @@ class Experiment(metaclass=SingletonMeta):
         print(f"{mode} evaluation)")
         evaluate_result = utils.evaluate(model, loader)
         print(evaluate_result)
-        self.save_results_in_experiment_folder(epoch, evaluate_result, path=f"{mode}_results.csv")
+        self.save_results_in_experiment_folder(epoch, evaluate_result=evaluate_result, mode=mode)
 
     def run_rl_combined_model(self, epoch):
         logger.info(f"Epoch {epoch}")
         utils.run_train_epoch(self.model, self.train_loader)
         self.model.model.train_router(epoch)
-        self.evaluate_and_save_results(epoch, mode='train', model = self.model)
-        self.evaluate_and_save_results(epoch, mode='test', model = self.model)
+        self.evaluate_and_save_results(epoch, mode='train', model=self.model)
+        self.evaluate_and_save_results(epoch, mode='test', model=self.model)
 
     def run_normal_model(self, epoch):
         logger.info(f"Epoch {epoch}")
         utils.run_train_epoch(self.model, self.train_loader)
 
-        self.evaluate_and_save_results(epoch, mode='train', model = self.model)
-        self.evaluate_and_save_results(epoch, mode='test', model = self.model)
+        self.evaluate_and_save_results(epoch, mode='train', model=self.model)
+        self.evaluate_and_save_results(epoch, mode='test', model=self.model)
 
     def run(self):
         model = self.model.model
@@ -92,8 +92,9 @@ class Experiment(metaclass=SingletonMeta):
             else:
                 self.run_normal_model(epoch)
 
-    def save_results_in_experiment_folder(self, epoch, evaluate_result, path):
-        results_csv = os.path.join(self.experiment_path, path)
-        df = pd.DataFrame.from_dict(evaluate_result, orient='index').T
-        df.insert(0, 'epoch', epoch)
-        df.to_csv(results_csv, mode='a', header=not os.path.exists(results_csv), index=False)
+    def save_results_in_experiment_folder(self, epoch: int, evaluate_result: Dict, mode: str):
+        result_pickle_path = os.path.join(self.experiment_path, 'results', f'epoch_{epoch}_{mode}.pickle')
+        import pickle
+        os.makedirs(os.path.dirname(result_pickle_path), exist_ok=True)
+        with open(result_pickle_path, 'wb') as f:
+            pickle.dump(evaluate_result, f)
