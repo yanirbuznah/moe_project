@@ -63,13 +63,9 @@ def evaluate(model: Model, data_loader) -> dict:
     model.eval()
     total_loss = 0
     with torch.no_grad():
-        x =0
         for batch in tqdm(data_loader, desc="Evaluating"):
             loss = model.evaluate(batch)
             total_loss += loss.item()
-            x+=1
-            if x ==5:
-                break
 
     total_loss /= len(data_loader)
     model_evaluation = model.compute_metrics()
