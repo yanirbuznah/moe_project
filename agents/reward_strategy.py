@@ -177,21 +177,24 @@ class RewardStrategy:
     def _noa_reward(self, sample, action, model: MixtureOfExperts, out=None, y=None, k=3):
         probs = self._get_probs_from_model(model, sample)
         topk = torch.topk(probs, k, dim=1)
-        max_probs, preds = torch.max(probs, dim=1)
-        out, y = self._get_output_from_model(preds, model, sample) if out is None else (out, y)
+        max_probs, router_preds = torch.max(probs, dim=1)
+        out, y = self._get_output_from_model(router_preds, model, sample) if out is None else (out, y)
         out = nn.functional.softmax(out, dim=1)
 
         current = max_probs * out[torch.arange(len(out)), y]
         out_all = []
-        for i in range(k):
+        for i in range(1, k):
             out_i, _ = self._get_output_from_model(topk.indices[:, i], model, sample)
             out_i = nn.functional.softmax(out_i, dim=1)
             out_all.append(out_i)
         out_all = torch.stack(out_all)
         preds_on_right = out_all[:, torch.arange(len(out)), y]
         best_pred, _ = torch.max(preds_on_right, dim=0)
-        regret = best_pred - current
-        return -1 * regret
+        action_count = torch.bincount(action, minlength=self.num_of_experts)
+        action_probs = action_count / action_count.sum()
+        entropy = -torch.sum(action_probs * torch.log(action_probs + 1e-10)) / np.log(self.num_of_experts)
+        reward = entropy + (current - best_pred)
+        return reward
 
     def _get_entropy_for_consistency(self, preds, routes, true_assignments):
         consistency = np.zeros((self.num_of_experts, self.num_of_classes))
