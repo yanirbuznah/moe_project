@@ -193,7 +193,7 @@ class RewardStrategy:
         action_count = torch.bincount(action, minlength=self.num_of_experts)
         action_probs = action_count / action_count.sum()
         entropy = -torch.sum(action_probs * torch.log(action_probs + 1e-10)) / np.log(self.num_of_experts)
-        reward = entropy + (current - best_pred)
+        reward = entropy + (current - current)
         return reward
 
     def _get_entropy_for_consistency(self, preds, routes, true_assignments):
