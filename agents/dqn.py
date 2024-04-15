@@ -138,7 +138,7 @@ class Agent:
 
     def learn(self):
         rewards = 0
-        self.epsilon = 1.0
+        self.epsilon = self.config.get('epsilon', 1.0)
         episode = 0
         for episode in tqdm(range(self.num_of_episodes), desc=f"RL Training"):
             state = self.env.reset()
