@@ -9,6 +9,9 @@ from PIL import Image
 # from .vision import VisionDataset
 from torchvision.datasets.vision import VisionDataset
 from torchvision.datasets.utils import download_and_extract_archive, check_integrity
+from logger import Logger
+
+logger = Logger().logger(__name__)
 
 class CIFAR10(VisionDataset):
     """`CIFAR10 <https://www.cs.toronto.edu/~kriz/cifar.html>`_ Dataset.
@@ -138,7 +141,7 @@ class CIFAR10(VisionDataset):
 
     def download(self) -> None:
         if self._check_integrity():
-            print("Files already downloaded and verified")
+            logger.info("Files already downloaded and verified")
             return
         download_and_extract_archive(self.url, self.root, filename=self.filename, md5=self.tgz_md5)
 

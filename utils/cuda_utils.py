@@ -2,6 +2,10 @@ import subprocess
 
 import torch
 
+from logger import Logger
+
+logger = Logger().logger(__name__)
+
 
 def get_unoccupied_device():
     try:
@@ -14,7 +18,9 @@ def get_unoccupied_device():
         return torch.device('cuda:' + str(memory_free_values.index(max(memory_free_values))))
     except Exception as e:
         print('"nvidia-smi" is probably not installed. GPUs are not usable. Error:', e)
+        logger.warning('"nvidia-smi" is probably not installed. GPUs are not usable. Error:', e)
         return torch.device('cpu')
+
 
 if __name__ == '__main__':
     device = get_unoccupied_device()
