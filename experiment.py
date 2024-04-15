@@ -57,9 +57,9 @@ class Experiment(metaclass=SingletonMeta):
         self.save_results_in_experiment_folder(epoch, evaluate_result=evaluate_result, mode=mode)
 
     def run_rl_combined_model(self, epoch):
-        utils.run_train_epoch(self.model, self.train_loader)
+        # utils.run_train_epoch(self.model, self.train_loader)
         self.model.model.train_router(epoch)
-        self.evaluate_and_save_results(epoch, mode='train', model=self.model)
+        # self.evaluate_and_save_results(epoch, mode='train', model=self.model)
         self.evaluate_and_save_results(epoch, mode='test', model=self.model)
 
     def run_normal_model(self, epoch):
