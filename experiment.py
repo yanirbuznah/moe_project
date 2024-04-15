@@ -1,5 +1,4 @@
 import json
-import logging
 import os
 from typing import Dict
 
@@ -8,12 +7,13 @@ import torch.utils.data as data
 
 import utils.general_utils as utils
 from datasets_and_dataloaders.custom_dataset import CustomDataset
+from logger import Logger
 from metrics import ConfusionMatrix
 from models.MOE import MixtureOfExperts
 from models.Model import Model
 from utils.singleton_meta import SingletonMeta
 
-logger = logging.getLogger(__name__)
+logger = Logger().logger(__name__)
 
 
 class Experiment(metaclass=SingletonMeta):
@@ -51,20 +51,18 @@ class Experiment(metaclass=SingletonMeta):
 
     def evaluate_and_save_results(self, epoch: int, mode: str, model: torch.nn.Module):
         loader = self.train_loader if mode == 'train' else self.test_loader
-        print(f"{mode} evaluation)")
+        logger.info(f"{mode} evaluation)")
         evaluate_result = utils.evaluate(model, loader)
-        print(evaluate_result)
+        logger.info(evaluate_result)
         self.save_results_in_experiment_folder(epoch, evaluate_result=evaluate_result, mode=mode)
 
     def run_rl_combined_model(self, epoch):
-        logger.info(f"Epoch {epoch}")
         utils.run_train_epoch(self.model, self.train_loader)
         self.model.model.train_router(epoch)
         self.evaluate_and_save_results(epoch, mode='train', model=self.model)
         self.evaluate_and_save_results(epoch, mode='test', model=self.model)
 
     def run_normal_model(self, epoch):
-        logger.info(f"Epoch {epoch}")
         utils.run_train_epoch(self.model, self.train_loader)
 
         self.evaluate_and_save_results(epoch, mode='train', model=self.model)
@@ -73,6 +71,7 @@ class Experiment(metaclass=SingletonMeta):
     def run(self):
         model = self.model.model
         for epoch in range(self.model.config['epochs']):
+            logger.info(f"Epoch {epoch}")
             if isinstance(model, MixtureOfExperts):
                 rl_router = model.unsupervised_router
                 if rl_router and self.model.model.router_config['epochs']:
@@ -85,10 +84,10 @@ class Experiment(metaclass=SingletonMeta):
                     pass
                 if epoch % 10 == 0 or epoch == self.model.config['epochs'] - 1:
                     for i, expert in enumerate(model.experts):
-                        print(f"Confusion Matrix for Expert {i}")
+                        logger.debug(f"Confusion Matrix for Expert {i}")
                         cm = ConfusionMatrix.compute_from_y_pred_y_true(
                             *utils.get_y_true_and_y_pred_from_expert(model, self.test_loader, i))
-                        print(cm)
+                        logger.debug(cm)
             else:
                 self.run_normal_model(epoch)
 

@@ -4,8 +4,11 @@ import torch
 from scipy.stats import chi2_contingency
 from sklearn.metrics import confusion_matrix
 
+from logger import Logger
 from metrics.Metric import Metric
 from utils.singleton_meta import SingletonMeta
+
+logger = Logger().logger(__name__)
 
 
 class MoEMetricPreprocessor(Metric, metaclass=SingletonMeta):
@@ -68,6 +71,7 @@ class MoEMetricPreprocessor(Metric, metaclass=SingletonMeta):
             return self._get_attribute_from_args(self.possible_routes, **kwargs)
         except StopIteration:
             return self._get_attribute_from_args(self.possible_routes_probs, **kwargs).argmax(dim=-1)
+
 
 class MOEMetric(Metric, metaclass=SingletonMeta):
     def __init__(self, ):
@@ -136,8 +140,8 @@ class PValue(MOEMetric):
         try:
             return chi2_contingency(conmat)[1]
         except Exception as e:
-            print('p-value calculation failed with error: ', e)
-            print('adding small noise to the confusion matrix')
+            logger.info('p-value calculation failed with error: ', e)
+            logger.debug('adding small noise to the confusion matrix')
             return chi2_contingency(conmat + np.random.uniform(1e-10, 1e-5, conmat.shape))[1]
 
 
