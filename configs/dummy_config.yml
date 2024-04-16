@@ -1,11 +1,11 @@
 log:
-  wandb_project_name: dummy_project
-  experiment_name: dummy_experiment
+  wandb_project_name: debug_project
+  experiment_name: no_load_balancing_experiment
   experiment_description: dummy_description
 
 # experiment: !include experiment_configs/experiment_config.yml
 
-dataloader: !include dataloader_configs/cifar100_dataloader_config.yml
+dataloader: !include dataloader_configs/cifar10_dataloader_config.yml
 
 model:
   model: !include model_configs/moe_model_config.yml

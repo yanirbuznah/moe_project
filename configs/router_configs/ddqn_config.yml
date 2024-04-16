@@ -4,7 +4,7 @@ model: DQN
 backbone: null #!include expert_configs/resnet18_expert_config.yml
 backbone_output_shape: 128
 
-reward_function: NoaReward
+reward_function: SpecializationAndConsistency
 hidden_dim: 128
 buffer_capacity: 10000
 batch_size: 512

@@ -29,16 +29,26 @@ class DQN(nn.Module):
 
 class ReplayBuffer:
     def __init__(self, capacity):
-        self.state = torch.FloatTensor()
-        self.action = torch.LongTensor()
-        self.reward = torch.FloatTensor()
-        self.next_state = torch.FloatTensor()
+        self.state = None
+        self.action = None
+        self.reward = None
+        self.next_state = None
         self.capacity = capacity
 
+    def _prepare_tensors(self, state, action, reward):
+
+        return state.cpu().unsqueeze(0), action.cpu().unsqueeze(0), reward.cpu().unsqueeze(0)
     def append(self, state, action, reward):
-        self.state = torch.cat([self.state, state.cpu()])
-        self.action = torch.cat([self.action, action.cpu()])
-        self.reward = torch.cat([self.reward, reward.cpu()])
+        state, action, reward = self._prepare_tensors(state, action, reward)
+        if self.state is None:
+            self.state = state
+            self.action = action
+            self.reward = reward
+            return
+
+        self.state = torch.concat([self.state, state])
+        self.action = torch.concat([self.action, action])
+        self.reward = torch.concat([self.reward, reward])
         # self.next_state = torch.cat([self.next_state, torch.FloatTensor(next_state)])
         if len(self.state) > self.capacity:
             self.state = self.state[-self.capacity:]
@@ -114,11 +124,12 @@ class Agent:
             return self.q_net(state).argmax(axis=1)
 
     def update(self):
-        if len(self.memory) < self.batch_size:
-            return
+        # if len(self.memory) < self.batch_size:
+        #     return
         state_batch, action_batch, reward_batch = self.memory.sample_with_exponentially_smoothing(self.batch_size,5e-4,
                                                                                                   self.model.device)
         self.update_by_batch(state_batch, action_batch, reward_batch)
+
 
     def update_by_batch(self, state_batch, action_batch, reward_batch):
         q_values = self.q_net(state_batch)

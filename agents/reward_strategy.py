@@ -158,7 +158,8 @@ class RewardStrategy:
         output_of_true_class = out[torch.arange(len(out)), y]
         pr_of_true_class = out[torch.arange(len(out)), y]
         load_var = torch.var(load)
-        rewards = [output_of_true_class[i] * consistency[action[i], y[i]] * specialization[action[i],y[i]] / load[action[i]] for i in range(len(acc))]
+        # rewards = [output_of_true_class[i] * consistency[action[i], y[i]] * specialization[action[i],y[i]] / load[action[i]] for i in range(len(acc))]
+        rewards = [output_of_true_class[i] * consistency[action[i], y[i]] * specialization[action[i],y[i]] for i in range(len(acc))]
         # rewards = [acc[i] * consistency[action[i], y[i]] * specialization[action[i],y[i]] / load[action[i]] for i in range(len(acc))]
         # rewards = [acc[i] * consistency[action[i], y[i]] * specialization[action[i],y[i]] * load_var for i in range(len(acc))]
         rewards = torch.stack(rewards) if isinstance(rewards[0], torch.Tensor) else torch.FloatTensor(rewards)
@@ -193,8 +194,9 @@ class RewardStrategy:
         action_count = torch.bincount(action, minlength=self.num_of_experts)
         action_probs = action_count / action_count.sum()
         entropy = -torch.sum(action_probs * torch.log(action_probs + 1e-10)) / np.log(self.num_of_experts)
-        reward = entropy + (current - current)
+        reward = entropy
         return reward
+
 
     def _get_entropy_for_consistency(self, preds, routes, true_assignments):
         consistency = np.zeros((self.num_of_experts, self.num_of_classes))
