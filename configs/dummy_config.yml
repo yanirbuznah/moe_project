@@ -1,5 +1,5 @@
 log:
-  wandb_project_name: debug_project
+  wandb_project_name: null
   experiment_name: dummy_experiment
   experiment_description: dummy_description
 
@@ -15,8 +15,8 @@ model:
 
 
 metrics:
-#    - MOEConfusionMatrix
-#    - ConfusionMatrix
+    - MOEConfusionMatrix
+    - ConfusionMatrix
     - Accuracy
     - F1
     - Precision
