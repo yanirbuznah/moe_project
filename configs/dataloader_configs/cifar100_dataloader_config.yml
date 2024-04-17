@@ -1,5 +1,5 @@
 dataset: cifar100
-batch_size: 128
+batch_size: 1024
 transform: true
 transforms:
   ToPILImage: null
@@ -14,7 +14,7 @@ transforms:
     inplace: true
 
 shuffle: true
-num_workers: 1
+num_workers: 4
 
 # Path: configs\dataloader_configs\cifar10_config.yml
     
