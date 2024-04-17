@@ -57,14 +57,14 @@ class Experiment(metaclass=SingletonMeta):
         return evaluate_result
 
     def run_rl_combined_model(self, epoch):
-        # utils.run_train_epoch(self.model, self.train_loader)
-        # wandb.watch(self.model.model)
+        utils.run_train_epoch(self.model, self.train_loader)
+        wandb.watch(self.model.model)
         self.model.model.train_router(epoch)
-        # train_evaluate_results = self.evaluate_and_save_results(epoch, mode='train', model=self.model)
-        # validate_evaluate_results = self.evaluate_and_save_results(epoch, mode='test', model=self.model)
-        # wandb.log({'train': train_evaluate_results, 'validate': validate_evaluate_results})
-        # logger.info(f"Train: {train_evaluate_results}")
-        # logger.info(f"Validate: {validate_evaluate_results}")
+        train_evaluate_results = self.evaluate_and_save_results(epoch, mode='train', model=self.model)
+        validate_evaluate_results = self.evaluate_and_save_results(epoch, mode='test', model=self.model)
+        logger.info(f"Train: {train_evaluate_results}")
+        logger.info(f"Validate: {validate_evaluate_results}")
+        wandb.log({'train': train_evaluate_results, 'validate': validate_evaluate_results})
     def run_normal_model(self, epoch):
         utils.run_train_epoch(self.model, self.train_loader)
 
