@@ -4,9 +4,10 @@ import torch
 from torch import nn
 
 from agents.reward_strategy import RewardStrategy
+from logger import Logger
 from models.MOE import MixtureOfExperts
 
-
+logger = Logger().logger(__name__)
 # from utils.general_utils import device
 
 
@@ -23,6 +24,7 @@ class CustomEnv(gym.Env):
         self.cf_entropy = nn.CrossEntropyLoss(reduction='none')
         self.reward_function = RewardStrategy(model.router_config['model_config']['reward_function'], model.num_experts,
                                               model.output_shape).get_reward_function()
+        logger.info(self.reward_function)
         self.batch_size = model.router_config['model_config']['batch_size']
 
     def step(self, action):
