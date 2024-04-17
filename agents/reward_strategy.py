@@ -174,12 +174,13 @@ class RewardStrategy:
         indices = y
         # output_of_true_class = out[torch
 
-    def _noa_reward(self, sample, action, model: MixtureOfExperts, out=None, y=None, k=3):
+    def _noa_reward(self, sample, action, model: MixtureOfExperts, out=None, y=None, k=2):
         probs = self._get_probs_from_model(model, sample)
         topk = torch.topk(probs, k, dim=1)
         max_probs, router_preds = torch.max(probs, dim=1)
         out, y = self._get_output_from_model(router_preds, model, sample) if out is None else (out, y)
         out = nn.functional.softmax(out, dim=1)
+        preds = torch.argmax(out, dim=1)
 
         current = max_probs * out[torch.arange(len(out)), y]
         out_all = []
@@ -192,6 +193,8 @@ class RewardStrategy:
         best_pred, _ = torch.max(preds_on_right, dim=0)
         action_count = torch.bincount(action, minlength=self.num_of_experts)
         action_probs = action_count / action_count.sum()
+        consistency, specialization = self._get_C_matrix(preds,action.detach(), y)
+        load = torch.FloatTensor(consistency.sum(axis=1)) / self.num_of_classes
         entropy = -torch.sum(action_probs * torch.log(action_probs + 1e-10)) / np.log(self.num_of_experts)
         reward = entropy + (current - best_pred)
         return reward

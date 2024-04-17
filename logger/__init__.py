@@ -9,21 +9,24 @@ from utils.singleton_meta import SingletonMeta
 
 # get project root directory
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
+import wandb
 
 class Logger(metaclass=SingletonMeta):
     def __init__(self, experiment_dir_path: str = None):
         experiment_dir_path = experiment_dir_path or os.path.join(PROJECT_ROOT, 'temp_logs', self._get_random_string())
-        if not os.path.exists(experiment_dir_path):
-            os.makedirs(experiment_dir_path)
-        self._logger_file_name = os.path.join(experiment_dir_path, 'experiment.log')
-        print(f"Logs will be saved in {self._logger_file_name}")
+        if not wandb.run:
+            if not os.path.exists(experiment_dir_path):
+                os.makedirs(experiment_dir_path)
+            self._logger_file_name = os.path.join(experiment_dir_path, 'experiment.log')
+            print(f"Logs will be saved in {self._logger_file_name}")
 
     def logger(self, name):
         logger = logging.getLogger(name)
         logger.setLevel(logging.DEBUG)
-
-        handler = logging.FileHandler(self.logger_file_name)
+        if not wandb.run:
+            handler = logging.FileHandler(self.logger_file_name)
+        else:
+            handler = logging.StreamHandler()
         handler.setLevel(logging.DEBUG)
 
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -47,7 +50,7 @@ class Logger(metaclass=SingletonMeta):
     def shutdown(copy_to=None):
         logger_file_name = Logger().logger_file_name
         logging.shutdown()
-        if copy_to:
+        if copy_to and os.path.exists(logger_file_name):
             shutil.move(logger_file_name, copy_to)
             print(f"Logs are saved in {copy_to}")
 

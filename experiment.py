@@ -4,7 +4,6 @@ from typing import Dict
 
 import torch.nn
 import torch.utils.data as data
-
 import utils.general_utils as utils
 from datasets_and_dataloaders.custom_dataset import CustomDataset
 from logger import Logger
@@ -12,6 +11,7 @@ from metrics import ConfusionMatrix
 from models.MOE import MixtureOfExperts
 from models.Model import Model
 from utils.singleton_meta import SingletonMeta
+import wandb
 
 logger = Logger().logger(__name__)
 
@@ -53,20 +53,26 @@ class Experiment(metaclass=SingletonMeta):
         loader = self.train_loader if mode == 'train' else self.test_loader
         logger.info(f"{mode} evaluation)")
         evaluate_result = utils.evaluate(model, loader)
-        logger.info(evaluate_result)
         self.save_results_in_experiment_folder(epoch, evaluate_result=evaluate_result, mode=mode)
+        return evaluate_result
 
     def run_rl_combined_model(self, epoch):
         utils.run_train_epoch(self.model, self.train_loader)
+        wandb.watch(self.model.model)
         self.model.model.train_router(epoch)
-        self.evaluate_and_save_results(epoch, mode='train', model=self.model)
-        self.evaluate_and_save_results(epoch, mode='test', model=self.model)
-
+        train_evaluate_results = self.evaluate_and_save_results(epoch, mode='train', model=self.model)
+        validate_evaluate_results = self.evaluate_and_save_results(epoch, mode='test', model=self.model)
+        wandb.log({'train': train_evaluate_results, 'validate': validate_evaluate_results})
+        logger.info(f"Train: {train_evaluate_results}")
+        logger.info(f"Validate: {validate_evaluate_results}")
     def run_normal_model(self, epoch):
         utils.run_train_epoch(self.model, self.train_loader)
 
-        self.evaluate_and_save_results(epoch, mode='train', model=self.model)
-        self.evaluate_and_save_results(epoch, mode='test', model=self.model)
+        train_evaluate_results = self.evaluate_and_save_results(epoch, mode='train', model=self.model)
+        validate_evaluate_results = self.evaluate_and_save_results(epoch, mode='test', model=self.model)
+        wandb.log({'train': train_evaluate_results, 'validate': validate_evaluate_results})
+        logger.info(f"Train: {train_evaluate_results}")
+        logger.info(f"Validate: {validate_evaluate_results}")
 
     def run(self):
         model = self.model.model
