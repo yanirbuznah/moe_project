@@ -17,7 +17,6 @@ def get_unoccupied_device():
 
         return torch.device('cuda:' + str(memory_free_values.index(max(memory_free_values))))
     except Exception as e:
-        print('"nvidia-smi" is probably not installed. GPUs are not usable. Error:', e)
         logger.warning('"nvidia-smi" is probably not installed. GPUs are not usable. Error:', e)
         return torch.device('cpu')
 
