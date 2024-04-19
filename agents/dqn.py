@@ -4,6 +4,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import wandb
 from tqdm import tqdm
 
 import models.utils as ut
@@ -159,6 +160,10 @@ class Agent:
             self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
             rewards += (reward.mean().item())
             tqdm.write(f"\rEpisode: {episode}, Epsilon: {round(self.epsilon, 3)},  mean Reward: {rewards / (episode + 1)}", end="")
+        print("\n")
+        mean_reward = rewards / (episode + 1)
+        print(f"Mean reward: {mean_reward}")
+        wandb.log({"mean_reward": mean_reward})
             # print("\rEpisode: {}\{}, Epsilon: {},  mean Reward: {}".format(episode, self.num_of_episodes,
             #                                                                round(self.epsilon, 3),
             #                                                                rewards / (episode + 1)), end="")
