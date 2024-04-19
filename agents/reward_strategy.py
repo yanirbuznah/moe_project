@@ -34,6 +34,8 @@ class RewardStrategy:
             return self._ce_dot_probs_tanh
         elif self.reward_type == 'SpecializationAndConsistency':
             return self._specialization_and_consistency
+        elif self.reward_type == 'Entropy':
+            return self._entropy
         elif self.reward_type == 'NoaReward':
             return self._noa_reward
         else:
@@ -166,6 +168,11 @@ class RewardStrategy:
         rewards = torch.stack(rewards) if isinstance(rewards[0], torch.Tensor) else torch.FloatTensor(rewards)
         return rewards
 
+    def _entropy(self, sample, action, model, out = None, y = None):
+        action_count = torch.bincount(action, minlength=self.num_of_experts)
+        action_probs = action_count / action_count.sum()
+        entropy = -torch.sum(action_probs * torch.log(action_probs))
+        return torch.zeros_like(action) + entropy
 
     def _proposal_specialization_and_consistency(self, sample, action, model, out = None, y = None):
         out, y = self._get_output_from_model(action, model, sample) if out is None else (out, y)

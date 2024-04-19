@@ -64,7 +64,8 @@ class Experiment(metaclass=SingletonMeta):
         validate_evaluate_results = self.evaluate_and_save_results(epoch, mode='test', model=self.model)
         logger.info(f"Train: {train_evaluate_results}")
         logger.info(f"Validate: {validate_evaluate_results}")
-        wandb.log({'train': train_evaluate_results, 'validate': validate_evaluate_results})
+        if wandb.run:
+            wandb.log({'train': train_evaluate_results, 'validate': validate_evaluate_results})
     def run_normal_model(self, epoch):
         utils.run_train_epoch(self.model, self.train_loader)
 
@@ -72,7 +73,8 @@ class Experiment(metaclass=SingletonMeta):
         validate_evaluate_results = self.evaluate_and_save_results(epoch, mode='test', model=self.model)
         logger.info(f"Train: {train_evaluate_results}")
         logger.info(f"Validate: {validate_evaluate_results}")
-        wandb.log({'train': train_evaluate_results, 'validate': validate_evaluate_results})
+        if wandb.run:
+            wandb.log({'train': train_evaluate_results, 'validate': validate_evaluate_results})
 
     def run(self):
         model = self.model.model
