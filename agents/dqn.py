@@ -48,7 +48,10 @@ class ReplayBuffer:
             # self.next_state = self.next_state[-self.capacity:]
 
     def sample(self, batch_size, device='cpu'):
-        idxs = np.random.randint(0, len(self.state), size=batch_size)
+        # idxs = np.random.randint(0, len(self.state), size=batch_size)
+        num_batches = len(self.state) // batch_size
+        start_idx = batch_size * random.randint(0, num_batches - 1)
+        idxs = torch.arange(start_idx, start_idx + batch_size)
         return self.state[idxs].to(device), self.action[idxs].to(device), self.reward[idxs].to(device)
 
     def sample_with_exponentially_smoothing(self, batch_size, alpha=0.0005, device='cpu'):
@@ -60,6 +63,15 @@ class ReplayBuffer:
         idxs = np.random.choice(len(self.state), size=batch_size, p=probs)
         return self.state[idxs].to(device), self.action[idxs].to(device), self.reward[idxs].to(device)
 
+    def sample_batch_with_exponentially_smoothing(self, batch_size, alpha=0.0005, device='cpu'):
+        # create a list of probabilities for each sample
+        probs = np.array([alpha * (1 - alpha) ** i for i in range(len(self.state), 0, -batch_size)])
+        # normalize the probabilities
+        probs = probs / probs.sum()
+        # sample from the list of probabilities
+        idxs = np.random.choice(len(probs), size=1, p=probs) * batch_size
+        idxs = np.arange(idxs, idxs + batch_size)
+        return self.state[idxs].to(device), self.action[idxs].to(device), self.reward[idxs].to(device)
     def __len__(self):
         return len(self.state)
 
@@ -117,8 +129,11 @@ class Agent:
     def update(self):
         if len(self.memory) < self.batch_size:
             return
-        state_batch, action_batch, reward_batch = self.memory.sample_with_exponentially_smoothing(self.batch_size,5e-4,
-                                                                                                  self.model.device)
+        # state_batch, action_batch, reward_batch = self.memory.sample(self.batch_size)
+        state_batch, action_batch, reward_batch = self.memory.sample_batch_with_exponentially_smoothing(self.batch_size,5e-4,
+                                                                                                        self.model.device)
+        # state_batch, action_batch, reward_batch = self.memory.sample_with_exponentially_smoothing(self.batch_size,5e-4,
+        #                                                                                           self.model.device)
         self.update_by_batch(state_batch, action_batch, reward_batch)
 
     def update_by_batch(self, state_batch, action_batch, reward_batch):
@@ -159,11 +174,12 @@ class Agent:
                 self.update_target_net()
             self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
             rewards += (reward.mean().item())
-            tqdm.write(f"\rEpisode: {episode}, Epsilon: {round(self.epsilon, 3)},  mean Reward: {rewards / (episode + 1)}", end="")
+            tqdm.write(f"Episode: {episode}, Epsilon: {round(self.epsilon, 3)},  mean Reward: {rewards / (episode + 1)}", end="")
         print("\n")
         mean_reward = rewards / (episode + 1)
         print(f"Mean reward: {mean_reward}")
-        wandb.log({"mean_reward": mean_reward})
+        if wandb.run:
+            wandb.log({"mean_reward": mean_reward})
             # print("\rEpisode: {}\{}, Epsilon: {},  mean Reward: {}".format(episode, self.num_of_episodes,
             #                                                                round(self.epsilon, 3),
             #                                                                rewards / (episode + 1)), end="")
