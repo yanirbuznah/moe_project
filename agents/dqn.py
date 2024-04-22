@@ -10,6 +10,7 @@ from tqdm import tqdm
 import models.utils as ut
 from agents.custom_env import CustomEnv
 from models.MOE import MixtureOfExperts
+from utils.assignment_utils import LinearAssignment
 
 
 class DQN(nn.Module):
@@ -119,9 +120,14 @@ class Agent:
         self.target_net.to(device)
         return self
 
-    def act(self, state):
-        if random.uniform(0, 1) < self.epsilon:
-            return torch.randint(0, self.action_dim, (state.shape[0],)).to(self.model.device)
+    def act(self, state, mode='test'):
+        if mode == 'train':
+            if random.uniform(0, 1) < self.epsilon:
+                return torch.randint(0, self.action_dim, (state.shape[0],)).to(self.model.device)
+            else:
+                with torch.no_grad():
+                    routes = self.q_net(state)
+                return LinearAssignment()(routes).to(self.model.device)
         else:
             with torch.no_grad():
                 state = state.unsqueeze(0) if len(state.shape) == 3 else state
@@ -171,7 +177,7 @@ class Agent:
 
             # while not done:
             # one step in the environment
-            action = self.act(state)
+            action = self.act(state, mode='train')
             _, reward, _, _ = self.env.step(action)
             self.memory.append(state, action, reward)
             self.update()

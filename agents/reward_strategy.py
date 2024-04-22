@@ -40,7 +40,7 @@ class RewardStrategy:
         elif self.reward_type == 'NoaReward':
             return self._noa_reward
         else:
-            return self._proposal_specialization_and_consistency_linear_assignment
+            return self._proposal_specialization_and_consistency
 
     def _get_cross_entropy_loss_reward(self, sample, action, model):
         model.eval()
@@ -193,27 +193,6 @@ class RewardStrategy:
         action = self._linear_assignment(routes).type_as(action).to(action.device)
         return self._proposal_specialization_and_consistency(sample, action, model, out, y)
 
-    def _linear_assignment(self, routes):
-        costs = -1 * routes.T
-        assignments = self.balanced_assignment(costs)
-        new_assignment = torch.zeros(len(routes))
-        for expert, assignment in enumerate(assignments):
-            new_assignment[assignment] = expert
-
-        return torch.tensor(new_assignment)
-        # TODO: implement linear assignment
-
-        pass
-
-    def balanced_assignment(self, cost_matrix):
-        cost_matrix = cost_matrix.cpu().numpy()
-        experts_assignments = [[] for _ in range(cost_matrix.shape[0])]
-        while cost_matrix.shape[1] > 0:
-            row_ind, col_ind = linear_sum_assignment(cost_matrix)
-            for i, j in zip(row_ind, col_ind):
-                experts_assignments[i].append(j)
-            cost_matrix = np.delete(cost_matrix, col_ind, axis=1)
-        return experts_assignments
 
     def _noa_reward(self, sample, action, model: MixtureOfExperts, out=None, y=None, k=2):
         # TODO: this is appropriate for actor critic methods
