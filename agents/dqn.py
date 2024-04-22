@@ -37,14 +37,14 @@ class ReplayBuffer:
         self.capacity = capacity
 
     def append(self, state, action, reward):
-        self.state = torch.cat([self.state, state.cpu()])
-        self.action = torch.cat([self.action, action.cpu()])
-        self.reward = torch.cat([self.reward, reward.cpu()])
+        self.state = torch.cat([state.cpu(),self.state])
+        self.action = torch.cat([action.cpu(), self.action])
+        self.reward = torch.cat([reward.cpu(), self.reward])
         # self.next_state = torch.cat([self.next_state, torch.FloatTensor(next_state)])
         if len(self.state) > self.capacity:
-            self.state = self.state[-self.capacity:]
-            self.action = self.action[-self.capacity:]
-            self.reward = self.reward[-self.capacity:]
+            self.state = self.state[:self.capacity]
+            self.action = self.action[:self.capacity]
+            self.reward = self.reward[:self.capacity]
             # self.next_state = self.next_state[-self.capacity:]
 
     def sample(self, batch_size, device='cpu'):
@@ -56,7 +56,7 @@ class ReplayBuffer:
 
     def sample_with_exponentially_smoothing(self, batch_size, alpha=0.0005, device='cpu'):
         # create a list of probabilities for each sample
-        probs = np.array([alpha * (1 - alpha) ** i for i in range(len(self.state), 0, -1)])
+        probs = np.array([alpha * (1 - alpha) ** i for i in range(len(self.state))])
         # normalize the probabilities
         probs = probs / probs.sum()
         # sample from the list of probabilities
@@ -65,11 +65,16 @@ class ReplayBuffer:
 
     def sample_batch_with_exponentially_smoothing(self, batch_size, alpha=0.0005, device='cpu'):
         # create a list of probabilities for each sample
-        probs = np.array([alpha * (1 - alpha) ** i for i in range(len(self.state), 0, -batch_size)])
+        probs = np.array([alpha * (1 - alpha) ** i for i in range(0, len(self.state), batch_size)])
         # normalize the probabilities
         probs = probs / probs.sum()
+        # #find the first 0 in the list of probabilities
+        # idx = np.where(probs == 0)[0][0]
+        # # remove the zeros from the list of probabilities
+        # self.capacity = idx * batch_size
         # sample from the list of probabilities
-        idxs = np.random.choice(len(probs), size=1, p=probs) * batch_size
+        valid_idxs_len = (len(probs) // batch_size) * batch_size
+        idxs = np.random.choice(valid_idxs_len, size=1, p=probs) * batch_size
         idxs = np.arange(idxs, idxs + batch_size)
         return self.state[idxs].to(device), self.action[idxs].to(device), self.reward[idxs].to(device)
     def __len__(self):
@@ -86,8 +91,8 @@ class Agent:
         self.state_dim = torch.prod(torch.tensor(self.env.observation_space.shape)).item()
         self.action_dim = self.env.action_space.n
         self.hidden_dim = self.config.get('hidden_dim', 128)
-        self.buffer_capacity = self.config.get('buffer_capacity', 10000)
         self.batch_size = self.config.get('batch_size', 64)
+        self.buffer_capacity = self.config.get('buffer_capacity', self.batch_size * 100)
         self.gamma = self.config.get('gamma', 0.99)
         self.epsilon = self.config.get('epsilon', 1.0)
         self.lr = self.config.get('lr', 0.001)

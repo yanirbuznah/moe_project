@@ -6,7 +6,7 @@ backbone_output_shape: 128
 
 reward_function: SpecializationWithLinearAssignment
 hidden_dim: 128
-buffer_capacity: 10000
+buffer_capacity: 51200
 batch_size: 512
 gamma: 0.99
 epsilon: 0.0
