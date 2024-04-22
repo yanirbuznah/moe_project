@@ -35,6 +35,9 @@ class Model(nn.Module):
     def forward(self, x):
         return self.model(x)
 
+    def __call__(self, *args, **kwargs):
+        return self.model(*args, **kwargs)
+
     def predict(self, x):
         return self.model(x).argmax(dim=1)
 

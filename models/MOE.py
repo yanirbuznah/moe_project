@@ -56,7 +56,7 @@ class MixtureOfExperts(nn.Module):
         self._alternate_modules(router_phase)
 
     def unsupervised_router_step(self, x):
-        return self.router.act(x)  # .cpu())
+        return self.router.act(x, training=self.training)  # .cpu())
 
     def supervised_router_step(self, x, router_phase):
         # encode the input to linear space
