@@ -74,7 +74,7 @@ class ReplayBuffer:
         # # remove the zeros from the list of probabilities
         # self.capacity = idx * batch_size
         # sample from the list of probabilities
-        valid_idxs_len = (len(probs) // batch_size) * batch_size
+        valid_idxs_len = (len(self.state) // batch_size)
         idxs = np.random.choice(valid_idxs_len, size=1, p=probs) * batch_size
         idxs = np.arange(idxs, idxs + batch_size)
         return self.state[idxs].to(device), self.action[idxs].to(device), self.reward[idxs].to(device)
