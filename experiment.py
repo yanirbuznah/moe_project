@@ -49,7 +49,7 @@ class Experiment(metaclass=SingletonMeta):
             os.makedirs(self.experiment_path)
         json.dump(self.config, open(os.path.join(self.experiment_path, "config.json"), 'w'), indent=4)
 
-    def evaluate_and_save_results(self, epoch: int, mode: str, model: torch.nn.Module):
+    def evaluate_and_save_results(self, epoch: int, mode: str, model: torch.nn.Module) -> Dict:
         loader = self.train_loader if mode == 'train' else self.test_loader
         logger.info(f"{mode} evaluation)")
         evaluate_result = utils.evaluate(model, loader)
@@ -66,7 +66,9 @@ class Experiment(metaclass=SingletonMeta):
         logger.info(f"Train: {train_evaluate_results}")
         logger.info(f"Validate: {validate_evaluate_results}")
         if wandb.run:
-            wandb.log({'train': train_evaluate_results, 'validate': validate_evaluate_results})
+            train_evaluate_results = {f'train_{k}': v for k, v in train_evaluate_results.items()}
+            validate_evaluate_results = {f'validate_{k}': v for k, v in validate_evaluate_results.items()}
+            wandb.log({**train_evaluate_results, **validate_evaluate_results})
     def run_normal_model(self, epoch):
         utils.run_train_epoch(self.model, self.train_loader)
 

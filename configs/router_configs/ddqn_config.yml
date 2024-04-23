@@ -4,7 +4,7 @@ model: DQN
 backbone: !include expert_configs/resnet18_expert_config.yml
 backbone_output_shape: 128
 
-reward_function: SpecializationWithLinearAssignment
+reward_function: SpecializationAndConsistency
 hidden_dim: 128
 buffer_capacity: 51200
 batch_size: 512

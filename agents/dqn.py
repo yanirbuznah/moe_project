@@ -38,7 +38,7 @@ class ReplayBuffer:
         self.capacity = capacity
 
     def append(self, state, action, reward):
-        self.state = torch.cat([state.cpu(),self.state])
+        self.state = torch.cat([state.cpu(), self.state])
         self.action = torch.cat([action.cpu(), self.action])
         self.reward = torch.cat([reward.cpu(), self.reward])
         # self.next_state = torch.cat([self.next_state, torch.FloatTensor(next_state)])
@@ -78,6 +78,7 @@ class ReplayBuffer:
         idxs = np.random.choice(valid_idxs_len, size=1, p=probs) * batch_size
         idxs = np.arange(idxs, idxs + batch_size)
         return self.state[idxs].to(device), self.action[idxs].to(device), self.reward[idxs].to(device)
+
     def __len__(self):
         return len(self.state)
 
@@ -109,6 +110,7 @@ class Agent:
     def __call__(self, *args, **kwargs):
         return nn.Softmax(dim=1)(self.q_net(*args, **kwargs))
         # return self.q_net(*args, **kwargs)
+
     def _get_backbone(self):
         backbone_config = self.config.get('backbone', None)
         backbone_output_shape = self.config.get('backbone_output_shape', None)
@@ -141,7 +143,8 @@ class Agent:
         if len(self.memory) < self.batch_size:
             return
         # state_batch, action_batch, reward_batch = self.memory.sample(self.batch_size)
-        state_batch, action_batch, reward_batch = self.memory.sample_batch_with_exponentially_smoothing(self.batch_size,5e-4,
+        state_batch, action_batch, reward_batch = self.memory.sample_batch_with_exponentially_smoothing(self.batch_size,
+                                                                                                        5e-4,
                                                                                                         self.model.device)
         # state_batch, action_batch, reward_batch = self.memory.sample_with_exponentially_smoothing(self.batch_size,5e-4,
         #                                                                                           self.model.device)
@@ -167,7 +170,8 @@ class Agent:
         rewards = 0
         self.epsilon = self.config.get('epsilon', 1.0)
         episode = 0
-        for episode in tqdm(range(self.num_of_episodes), desc=f"RL Training"):
+        pbar = tqdm(range(self.num_of_episodes), desc=f"RL Training")
+        for episode in pbar:
             state = self.env.reset()
             # if state is tensor convert to device
             if isinstance(state, torch.Tensor):
@@ -185,7 +189,7 @@ class Agent:
                 self.update_target_net()
             self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
             rewards += (reward.mean().item())
-            tqdm.write(f"Episode: {episode}, Epsilon: {round(self.epsilon, 3)},  mean Reward: {rewards / (episode + 1)}", end="")
+            pbar.set_postfix({'Epsilon': round(self.epsilon, 3), 'mean Reward': rewards / (episode + 1)})
         print("\n")
         mean_reward = rewards / (episode + 1)
         print(f"Mean reward: {mean_reward}")
