@@ -10,7 +10,7 @@ from tqdm import tqdm
 import models.utils as ut
 from agents.custom_env import CustomEnv
 from models.MOE import MixtureOfExperts
-from utils.assignment_utils import LinearAssignment
+from utils.assignment_utils import LinearAssignment, LinearAssignmentWithCapacity
 
 
 class DQN(nn.Module):
@@ -129,7 +129,7 @@ class Agent:
             else:
                 with torch.no_grad():
                     routes = self.q_net(state)
-                return LinearAssignment()(routes).to(self.model.device)
+                return LinearAssignmentWithCapacity(1.2)(routes).to(self.model.device)
         else:
             with torch.no_grad():
                 state = state.unsqueeze(0) if len(state.shape) == 3 else state
