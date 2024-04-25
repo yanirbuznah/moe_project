@@ -26,6 +26,7 @@ class MoEMetricPreprocessor(Metric, metaclass=SingletonMeta):
         self.super_classes = torch.tensor([], dtype=torch.long)
         self.num_experts = 0
         self.class_names = []
+        self.super_classes_names = []
 
     def __call__(self, *args, **kwargs):
         y_pred, y_true, routes, counts, model, x, sc = self._parse_args(*args, **kwargs)
@@ -43,6 +44,7 @@ class MoEMetricPreprocessor(Metric, metaclass=SingletonMeta):
             self.super_classes = torch.cat((self.super_classes, sc), dim=0)
         self.num_experts = model.num_experts
         self.class_names = model.train_set.classes
+        self.super_classes_names = model.train_set.superclasses
 
     def _parse_args(self, *args, **kwargs):
         y_pred = self._get_attribute_from_args(self.possible_y_pred, **kwargs).argmax(dim=-1)
@@ -121,6 +123,9 @@ class MOEMetric(Metric, metaclass=SingletonMeta):
     def class_names(self):
         return self.moe_preprocessor.class_names
 
+    @property
+    def super_classes_names(self):
+        return self.moe_preprocessor.super_classes_names
 
 class RouterVSRandomAcc(MOEMetric):
     def compute(self):
@@ -134,6 +139,12 @@ class MOEConfusionMatrix(MOEMetric):
         return pd.DataFrame(confusion_matrix(self.labels, self.gates)[:, :self.num_experts], index=self.class_names)
 
 
+class SuperClassConfusionMatrix(MOEMetric):
+    def compute(self):
+        if len(self.super_classes) == 0:
+            return -1
+        return pd.DataFrame(confusion_matrix(self.super_classes, self.gates)[:, :self.num_experts],
+                            index=self.super_classes_names)
 class PValue(MOEMetric):
     def compute(self):
         conmat = confusion_matrix(self.labels, self.gates)[:, :self.num_experts]

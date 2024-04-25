@@ -15,6 +15,7 @@ model:
 
 
 metrics:
+    - SuperClassConfusionMatrix
     - MOEConfusionMatrix
     - ConfusionMatrix
     - Accuracy
