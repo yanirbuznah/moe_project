@@ -269,7 +269,7 @@ class Agent:
         avg_score = 0
         score_history = []
         best_score = -np.inf
-        for n_steps in range(self.num_of_episodes):
+        for n_steps in tqdm(range(self.num_of_episodes)):
             state = self.env.reset()
             done = False
             score = 0
@@ -282,15 +282,19 @@ class Agent:
                 self.update()
                 learn_iters += 1
             observation = observation_
-            score_history.append(reward.mean().item())
+            score = reward.mean().item()
+            score_history.append(score)
             avg_score = np.mean(score_history[-100:])
 
             if avg_score > best_score:
                 best_score = avg_score
                 # self.save_models()
+            tqdm.write(
+                f'episode {n_steps} score {score:.3f} avg score {avg_score:.3f} time_steps {n_steps} learning_steps {learn_iters}')
+            # print('episode', n_steps, 'score %.1f' % score, 'avg score %.3f' % avg_score,
+            #       'time_steps', n_steps, 'learning_steps', learn_iters)
 
-            print('episode', n_steps, 'score %.1f' % score, 'avg score %.3f' % avg_score,
-                  'time_steps', n_steps, 'learning_steps', learn_iters)
+
         self.epsilon = 1e-6
 
 # def plot_learning_curve(x, scores, figure_file):
