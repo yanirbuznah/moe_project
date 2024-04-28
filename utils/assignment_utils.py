@@ -38,7 +38,6 @@ class LinearAssignmentWithCapacity:
     def __init__(self, capacity: float = 1.2):
         self.capacity = capacity
 
-
     def __call__(self, routes: torch.Tensor) -> torch.Tensor:
         max_capacity = round(self.capacity * len(routes) / routes.shape[1])
         assignments = self._get_expert_assignments(routes, max_capacity)
@@ -47,7 +46,6 @@ class LinearAssignmentWithCapacity:
         for expert, assignment in enumerate(assignments):
             new_assignment[assignment] = expert
         return new_assignment.type(torch.long)
-
 
     def _get_expert_assignments(self, routes: torch.Tensor, max_capacity: int) -> list:
         unassigned = set([i for i in range(len(routes))])

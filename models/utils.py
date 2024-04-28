@@ -15,8 +15,7 @@ def get_agent(model: MixtureOfExperts):
     if router_type.lower() == 'dqn':
         router = dqn.Agent(model)
     elif router_type.lower() == 'ppo':
-        router = ppo.Agent(CustomEnv(), batch_size=args.batch_size,
-                           encoder=ut.get_expert(args.router_model, args.num_experts))
+        router = ppo.Agent(model)
     else:
         raise NotImplementedError(f"RL Router type {router_type} is not implemented")
     return router

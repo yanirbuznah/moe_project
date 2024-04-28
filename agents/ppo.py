@@ -8,9 +8,11 @@ import torch.nn as nn
 import torch.optim as optim
 # import matplotlib.pyplot as plt
 from torch.distributions.categorical import Categorical
-from torch.nn import Identity
 from tqdm import tqdm
 
+from agents.custom_env import CustomEnv
+from models.MOE import MixtureOfExperts
+import models.utils as ut
 
 
 class PPOMemory:
@@ -127,21 +129,39 @@ class CriticNetwork(nn.Module):
 
 
 class Agent:
-    def __init__(self, env, hidden_dim=128, gamma=0.99, alpha=0.0003, gae_lambda=0.95,
-                 policy_clip=0.2, batch_size=64, n_epochs=10, encoder=Identity()):
-        self.epsilon = 1.0
-        self.env = env
-        self.state_dim = torch.prod(torch.tensor(env.observation_space.shape)).item()
-        self.action_dim = env.action_space.n
-        self.hidden_dim = hidden_dim
-        self.gamma = gamma
-        self.policy_clip = policy_clip
-        self.n_epochs = n_epochs
-        self.gae_lambda = gae_lambda
-        self.encoder = encoder.to(device)
-        self.actor = ActorNetwork(self.action_dim, self.state_dim, alpha).to(device)
-        self.critic = CriticNetwork(self.state_dim, alpha).to(device)
-        self.memory = PPOMemory(batch_size)
+    def __init__(self, model: MixtureOfExperts):
+        self.model = model
+        self.config = model.router_config['model_config']
+        self.epsilon = self.config.get('epsilon', 1.0)
+        self.env = CustomEnv(model)
+        self.state_dim = torch.prod(torch.tensor(self.env.observation_space.shape)).item()
+        self.action_dim = self.env.action_space.n
+        self.hidden_dim = self.config.get('hidden_dim', 128)
+        self.gamma = self.config.get('gamma', 0.99)
+        self.policy_clip = self.config.get('policy_clip', 0.2)
+        self.n_epochs = self.config.get('n_epochs', 10)
+        self.gae_lambda = self.config.get('gae_lambda', 0.95)
+        self.encoder = self._get_backbone().to(self.model.device)
+        self.alpha = self.config.get('alpha', 0.0003)
+        self.actor = ActorNetwork(self.action_dim, self.state_dim, self.alpha).to(self.model.device)
+        self.critic = CriticNetwork(self.state_dim, self.alpha).to(self.model.device)
+        self.batch_size = self.config.get('batch_size', 64)
+        self.memory = PPOMemory(self.batch_size)
+        self.num_of_episodes = self.config.get('num_of_episodes', 500)
+
+        self.epsilon_decay = self.config.get('epsilon_decay', 0.999)
+        self.epsilon_min = self.config.get('epsilon_min', 0.01)
+
+    def to(self, device):
+        self.encoder.to(device)
+        self.actor.to(device)
+        self.critic.to(device)
+
+    def _get_backbone(self):
+        backbone_config = self.config.get('backbone', None)
+        backbone_output_shape = self.config.get('backbone_output_shape', None)
+        backbone = ut.get_model(backbone_config, output_shape=backbone_output_shape)
+        return backbone
 
     def remember(self, state, action, probs, vals, reward, done):
         self.memory.store_memory(state, action, probs, vals, reward, done)
@@ -186,23 +206,24 @@ class Agent:
                 state = self.encoder(state)
                 return self.actor(state).probs.argmax(axis=1)
 
-    def update(self, total_timesteps):
-        for _ in tqdm(range(total_timesteps), desc='Train PPO'):
+    def update(self):
+        for _ in tqdm(range(self.n_epochs), desc='Train PPO'):
             state_arr, action_arr, old_prob_arr, vals_arr, \
                 reward_arr, dones_arr, batches = \
                 self.memory.generate_batches()
 
             values = vals_arr
-            advantage = torch.zeros(reward_arr.shape)
+            # advantage = torch.zeros_lik(reward_arr.shape)
 
-            for t in range(len(reward_arr) - 1):
-                discount = 1
-                a_t = 0
-                for k in range(t, len(reward_arr) - 1):
-                    a_t += discount * (reward_arr[k] - values[k])
-                    discount *= self.gamma * self.gae_lambda
-                advantage[t] = a_t
-            advantage = advantage.to(self.actor.device)
+            # for t in range(len(reward_arr) - 1):
+                # discount = 1
+                # a_t = 0
+                # for k in range(t, len(reward_arr) - 1):
+                #     a_t += discount * (reward_arr[k] - values[k])
+                #     discount *= self.gamma * self.gae_lambda
+                # advantage[t] = reward_arr[t] - values[t]
+            advantage = reward_arr - values
+            # advantage = advantage.to(self.actor.device)
 
             values = values.to(self.actor.device)
             for batch in batches:
@@ -237,14 +258,13 @@ class Agent:
 
         self.memory.clear_memory()
 
-    def learn(self, total_timesteps=500, N=50):
+    def learn(self, N=50):
         self.epsilon = 1.0
         learn_iters = 0
         avg_score = 0
-        n_steps = 0
         score_history = []
         best_score = -np.inf
-        for i in range(total_timesteps):
+        for n_steps in range(self.num_of_episodes):
             state = self.env.reset()
             done = False
             score = 0
@@ -254,7 +274,7 @@ class Agent:
             n_steps += 1
             self.remember(state, action, prob, val, reward, done)
             if n_steps % N == 0:
-                self.update(1)
+                self.update()
                 learn_iters += 1
             observation = observation_
             score_history.append(reward.mean().item())
@@ -264,10 +284,9 @@ class Agent:
                 best_score = avg_score
                 self.save_models()
 
-            print('episode', i, 'score %.1f' % score, 'avg score %.1f' % avg_score,
+            print('episode', n_steps, 'score %.1f' % score, 'avg score %.1f' % avg_score,
                   'time_steps', n_steps, 'learning_steps', learn_iters)
         self.epsilon = 0.01
-
 
 # def plot_learning_curve(x, scores, figure_file):
 #     running_avg = np.zeros(len(scores))

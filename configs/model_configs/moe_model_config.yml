@@ -2,7 +2,7 @@ type: rl_moe
 
 router:
   - type: rl
-    model_config: !include router_configs/ddqn_config.yml
+    model_config: !include router_configs/ppo_config.yml
     epochs: [0, 100]
     supervised: false
 
@@ -12,4 +12,4 @@ input_shape_router: 100
 expert: !include expert_configs/resnet18_expert_config.yml
 num_experts: 2
 k: 1
-alternate: 1
+alternate: 2

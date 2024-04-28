@@ -1,5 +1,5 @@
 log:
-  wandb_project_name: null #cifar10_debug_experiment
+  wandb_project_name: cifar10_debug_experiment
   experiment_name: dummy_experiment
   experiment_description: dummy_description
 
