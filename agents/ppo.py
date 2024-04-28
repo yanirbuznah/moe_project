@@ -1,5 +1,6 @@
 import os
 import random
+from typing import Tuple
 
 import numpy as np
 import torch
@@ -148,6 +149,13 @@ class Agent:
         self.epsilon_decay = self.config.get('epsilon_decay', 0.999)
         self.epsilon_min = self.config.get('epsilon_min', 0.01)
 
+    def __call__(self, state: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        state = self.encoder(state)
+        dist = self.actor(state)
+        values = self.critic(state)
+        values = T.squeeze(values).detach()
+        return dist, values
+
     def to(self, device):
         self.encoder.to(device)
         self.actor.to(device)
@@ -164,15 +172,17 @@ class Agent:
 
     def save_models(self):
         print('... saving models ...')
+        self.encoder.save_checkpoint()
         self.actor.save_checkpoint()
         self.critic.save_checkpoint()
 
     def load_models(self):
         print('... loading models ...')
+        self.encoder.load_checkpoint()
         self.actor.load_checkpoint()
         self.critic.load_checkpoint()
 
-    def choose_action(self, state):
+    def choose_actions(self, state):
         state = self.encoder(state)
         dist = self.actor(state)
         values = self.critic(state)
@@ -180,16 +190,6 @@ class Agent:
 
         probs = dist.log_prob(actions).detach()
         values = T.squeeze(values).detach()
-
-        return actions, probs, values
-
-    def chose_actions(self, states):
-        dist = self.actor(states)
-        values = self.critic(states)
-        actions = dist.sample()
-
-        probs = dist.log_prob(actions)
-        values = T.squeeze(values)
 
         return actions, probs, values
 
@@ -265,7 +265,7 @@ class Agent:
             done = False
             score = 0
 
-            action, prob, val = self.choose_action(state)
+            action, prob, val = self.choose_actions(state)
             observation_, reward, done, info = self.env.step(action)
             n_steps += 1
             self.remember(state, action, prob, val, reward, done)
@@ -278,7 +278,7 @@ class Agent:
 
             if avg_score > best_score:
                 best_score = avg_score
-                self.save_models()
+                # self.save_models()
 
             print('episode', n_steps, 'score %.1f' % score, 'avg score %.1f' % avg_score,
                   'time_steps', n_steps, 'learning_steps', learn_iters)

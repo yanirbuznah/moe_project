@@ -4,7 +4,7 @@ model: PPO
 backbone: !include expert_configs/resnet18_expert_config.yml
 backbone_output_shape: 128
 
-reward_function: SpecializationAndConsistency
+reward_function: NoaReward
 hidden_dim: 128
 batch_size: 128
 gamma: 0.99
