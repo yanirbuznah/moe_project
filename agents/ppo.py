@@ -217,7 +217,8 @@ class Agent:
                 reward_arr, dones_arr, batches = \
                 self.memory.generate_batches()
 
-            values = vals_arr
+            values = vals_arr.to(self.model.device)
+            rewards = reward_arr.to(self.model.device)
             # advantage = torch.zeros_lik(reward_arr.shape)
 
             # for t in range(len(reward_arr) - 1):
@@ -227,10 +228,9 @@ class Agent:
             #     a_t += discount * (reward_arr[k] - values[k])
             #     discount *= self.gamma * self.gae_lambda
             # advantage[t] = reward_arr[t] - values[t]
-            advantage = reward_arr - values
+            advantage = rewards - values
             # advantage = advantage.to(self.actor.device)
 
-            values = values.to(self.model.device)
             for batch in batches:
                 states = state_arr[batch].to(self.model.device)
                 old_probs = old_prob_arr[batch].to(self.model.device)
