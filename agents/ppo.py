@@ -1,6 +1,6 @@
 import os
 import random
-from typing import Tuple
+from typing import Tuple, Union, List
 
 import numpy as np
 import torch
@@ -11,20 +11,20 @@ import torch.optim as optim
 from torch.distributions.categorical import Categorical
 from tqdm import tqdm
 
+import models.utils as ut
 from agents.custom_env import CustomEnv
 from models.MOE import MixtureOfExperts
-import models.utils as ut
+from utils.assignment_utils import LinearAssignmentWithCapacity
 
 
 class PPOMemory:
-    def __init__(self, batch_size):
-        self.states = []
-        self.probs = []
-        self.vals = []
-        self.actions = []
-        self.rewards = []
-        self.dones = []
-
+    def __init__(self, batch_size: int):
+        self.states: Union[List, torch.Tensor] = []
+        self.probs: Union[List, torch.Tensor] = []
+        self.vals: Union[List, torch.Tensor] = []
+        self.actions: Union[List, torch.Tensor] = []
+        self.rewards: Union[List, torch.Tensor] = []
+        self.dones: Union[List, torch.Tensor] = []
         self.batch_size = batch_size
 
     def _concat_memory(self):
@@ -35,7 +35,8 @@ class PPOMemory:
         self.rewards = T.cat(self.rewards)
         self.dones = T.cat(self.dones)
 
-    def generate_batches(self):
+    def generate_batches(self) -> Tuple[
+        torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, List]:
         # if the type of the memory is list, convert it to tensor
         if isinstance(self.states, list):
             self._concat_memory()
@@ -194,8 +195,14 @@ class Agent:
         return actions, probs, values
 
     def act(self, state, training=False):
-        if random.uniform(0, 1) < self.epsilon:
-            return torch.randint(0, self.action_dim, (state.shape[0],)).to(device)
+        if training:
+            if random.uniform(0, 1) < self.epsilon:
+                return torch.randint(0, self.action_dim, (state.shape[0],)).to(self.model.device)
+            else:
+                with torch.no_grad():
+                    dist = self.actor(state)
+                    routes_probs = dist.probs
+                return LinearAssignmentWithCapacity(capacity=1.2)(routes_probs).to(self.model.device)
         else:
             with torch.no_grad():
                 state = state.unsqueeze(0) if len(state.shape) == 3 else state
@@ -212,20 +219,20 @@ class Agent:
             # advantage = torch.zeros_lik(reward_arr.shape)
 
             # for t in range(len(reward_arr) - 1):
-                # discount = 1
-                # a_t = 0
-                # for k in range(t, len(reward_arr) - 1):
-                #     a_t += discount * (reward_arr[k] - values[k])
-                #     discount *= self.gamma * self.gae_lambda
-                # advantage[t] = reward_arr[t] - values[t]
+            # discount = 1
+            # a_t = 0
+            # for k in range(t, len(reward_arr) - 1):
+            #     a_t += discount * (reward_arr[k] - values[k])
+            #     discount *= self.gamma * self.gae_lambda
+            # advantage[t] = reward_arr[t] - values[t]
             advantage = reward_arr - values
             # advantage = advantage.to(self.actor.device)
 
-            values = values.to(self.actor.device)
+            values = values.to(self.model.device)
             for batch in batches:
-                states = state_arr[batch].to(self.actor.device)
-                old_probs = old_prob_arr[batch].to(self.actor.device)
-                actions = action_arr[batch].to(self.actor.device)
+                states = state_arr[batch].to(self.model.device)
+                old_probs = old_prob_arr[batch].to(self.model.device)
+                actions = action_arr[batch].to(self.model.device)
 
                 states = self.encoder(states)
                 dist = self.actor(states)
@@ -280,9 +287,9 @@ class Agent:
                 best_score = avg_score
                 # self.save_models()
 
-            print('episode', n_steps, 'score %.1f' % score, 'avg score %.1f' % avg_score,
+            print('episode', n_steps, 'score %.1f' % score, 'avg score %.3f' % avg_score,
                   'time_steps', n_steps, 'learning_steps', learn_iters)
-        self.epsilon = 0.01
+        self.epsilon = 1e-6
 
 # def plot_learning_curve(x, scores, figure_file):
 #     running_avg = np.zeros(len(scores))

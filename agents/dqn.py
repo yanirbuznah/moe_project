@@ -129,7 +129,7 @@ class Agent:
             else:
                 with torch.no_grad():
                     routes = self.q_net(state)
-                return LinearAssignmentWithCapacity(1.2)(routes).to(self.model.device)
+                return LinearAssignmentWithCapacity(capacity=1.2)(routes).to(self.model.device)
         else:
             with torch.no_grad():
                 state = state.unsqueeze(0) if len(state.shape) == 3 else state
