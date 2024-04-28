@@ -146,6 +146,7 @@ class Agent:
         self.batch_size = self.config.get('batch_size', 64)
         self.memory = PPOMemory(self.batch_size)
         self.num_of_episodes = self.config.get('num_of_episodes', 500)
+        self.linear_assignment = self.config.get('linear_assignment', False)
 
         self.epsilon_decay = self.config.get('epsilon_decay', 0.999)
         self.epsilon_min = self.config.get('epsilon_min', 0.01)
@@ -183,12 +184,12 @@ class Agent:
         self.actor.load_checkpoint()
         self.critic.load_checkpoint()
 
-    def choose_actions(self, state, linear_assignment=False):
+    def choose_actions(self, state):
         state = self.encoder(state)
         dist = self.actor(state)
         values = self.critic(state)
-        actions = LinearAssignmentWithCapacity(capacity=1.2)(dist.probs)\
-            if linear_assignment else dist.sample().detach()
+        actions = LinearAssignmentWithCapacity(capacity=1.2)(dist.probs) \
+            if self.linear_assignment else dist.sample().detach()
 
         probs = dist.log_prob(actions).detach()
         values = T.squeeze(values).detach()
@@ -269,7 +270,8 @@ class Agent:
         avg_score = 0
         score_history = []
         best_score = -np.inf
-        for n_steps in tqdm(range(self.num_of_episodes)):
+        pbar = tqdm(range(self.num_of_episodes), desc='Train PPO')
+        for n_steps in pbar:
             state = self.env.reset()
             done = False
             score = 0
@@ -289,11 +291,11 @@ class Agent:
             if avg_score > best_score:
                 best_score = avg_score
                 # self.save_models()
-            tqdm.write(
-                f'episode {n_steps} score {score:.3f} avg score {avg_score:.3f} time_steps {n_steps} learning_steps {learn_iters}')
+            pbar.set_postfix(
+                score=f'{score:.3f}', avg_score=f'{avg_score:.3f}', time_steps=n_steps, learning_steps=learn_iters
+            )
             # print('episode', n_steps, 'score %.1f' % score, 'avg score %.3f' % avg_score,
             #       'time_steps', n_steps, 'learning_steps', learn_iters)
-
 
         self.epsilon = 1e-6
 

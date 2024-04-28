@@ -205,7 +205,7 @@ class RewardStrategy:
         preds = torch.argmax(out, dim=1)
 
         current = max_probs * out[torch.arange(len(out)), y]
-        out_all = []
+        out_all = [out]
         for i in range(1, k):
             out_i, _ = self._get_output_from_model(topk.indices[:, i], model, sample)
             out_i = nn.functional.softmax(out_i, dim=1)
