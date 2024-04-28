@@ -197,7 +197,7 @@ class Agent:
 
         return actions, probs, values
 
-    def act(self, state):
+    def act(self, state, training=False):
         if random.uniform(0, 1) < self.epsilon:
             return torch.randint(0, self.action_dim, (state.shape[0],)).to(device)
         else:
