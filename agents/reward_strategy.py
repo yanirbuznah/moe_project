@@ -1,6 +1,5 @@
 import numpy as np
 import torch
-from scipy.optimize import linear_sum_assignment
 from torch import nn
 
 from models.MOE import MixtureOfExperts
@@ -165,9 +164,10 @@ class RewardStrategy:
         acc = preds == y
         output_of_true_class = out[torch.arange(len(out)), y]
         # rewards = [
-            # output_of_true_class[i] * consistency[action[i], y[i]] * specialization[action[i], y[i]] / load[action[i]]
-            # for i in range(len(acc))]
-        rewards = [acc[i] * consistency[action[i], y[i]] * specialization[action[i],y[i]] / load[action[i]] for i in range(len(acc))]
+        # output_of_true_class[i] * consistency[action[i], y[i]] * specialization[action[i], y[i]] / load[action[i]]
+        # for i in range(len(acc))]
+        rewards = [acc[i] * consistency[action[i], y[i]] * specialization[action[i], y[i]] / load[action[i]] for i in
+                   range(len(acc))]
         # rewards = [acc[i] * consistency[action[i], y[i]] * specialization[action[i],y[i]] * load_var for i in range(len(acc))]
         rewards = torch.stack(rewards) if isinstance(rewards[0], torch.Tensor) else torch.FloatTensor(rewards)
         return rewards
@@ -192,7 +192,6 @@ class RewardStrategy:
         routes = self._get_routes_from_model(model, sample)
         action = self._linear_assignment(routes).type_as(action).to(action.device)
         return self._proposal_specialization_and_consistency(sample, action, model, out, y)
-
 
     def _noa_reward(self, sample, action, model: MixtureOfExperts, out=None, y=None, k=2):
         # This is appropriate only for actor critic methods
@@ -219,7 +218,7 @@ class RewardStrategy:
         load = torch.FloatTensor(consistency.sum(axis=1)) / self.num_of_classes
         entropy = -torch.sum(action_probs * torch.log2(action_probs + 1e-10)) / np.log2(self.num_of_experts)
         reward = entropy + (current - best_pred)
-        return reward
+        return current - best_pred
 
     def _get_consistency(self, preds, routes, true_assignments):
         consistency = np.zeros((self.num_of_experts, self.num_of_classes))

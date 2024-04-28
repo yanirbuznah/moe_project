@@ -45,7 +45,7 @@ class LinearAssignmentWithCapacity:
         new_assignment = torch.zeros(len(routes))
         for expert, assignment in enumerate(assignments):
             new_assignment[assignment] = expert
-        return new_assignment.type(torch.long)
+        return new_assignment.type(torch.long).to(routes.device)
 
     def _get_expert_assignments(self, routes: torch.Tensor, max_capacity: int) -> list:
         unassigned = set([i for i in range(len(routes))])
