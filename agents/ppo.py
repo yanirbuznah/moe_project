@@ -183,16 +183,17 @@ class Agent:
         self.actor.load_checkpoint()
         self.critic.load_checkpoint()
 
-    def choose_actions(self, state):
+    def choose_actions(self, state, linear_assignment=False):
         state = self.encoder(state)
         dist = self.actor(state)
         values = self.critic(state)
-        actions = dist.sample().detach()
+        actions = LinearAssignmentWithCapacity(capacity=1.2)(dist.probs)\
+            if linear_assignment else dist.sample().detach()
 
         probs = dist.log_prob(actions).detach()
         values = T.squeeze(values).detach()
 
-        return actions, probs, values
+        return actions.cpu(), probs.cpu(), values.cpu()
 
     def act(self, state, training=False):
         if training:
@@ -200,6 +201,7 @@ class Agent:
                 return torch.randint(0, self.action_dim, (state.shape[0],)).to(self.model.device)
             else:
                 with torch.no_grad():
+                    state = self.encoder(state)
                     dist = self.actor(state)
                     routes_probs = dist.probs
                 return LinearAssignmentWithCapacity(capacity=1.2)(routes_probs).to(self.model.device)
