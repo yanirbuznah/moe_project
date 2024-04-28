@@ -6,7 +6,8 @@ backbone_output_shape: 128
 
 reward_function: NoaReward
 hidden_dim: 128
-batch_size: 128
+num_of_episodes: 250
+batch_size: 512
 gamma: 0.99
 policy_clip: 0.2
 n_epochs: 10
