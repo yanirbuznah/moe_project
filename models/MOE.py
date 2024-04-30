@@ -22,14 +22,14 @@ class MixtureOfExperts(nn.Module):
         self.experts = nn.ModuleList(
             [utils.get_model(model_config['expert'], train_set=train_set) for _ in range(self.num_experts)])
 
-        self.unsupervised_router = not model_config['router'][0]['supervised']
-        self.router_config = model_config['router'][0]
-        self.router = utils.get_router(self)
-
         self.softmax = nn.Softmax(dim=-1)
+
         self.encoder = utils.get_model(model_config['encoder'],
                                        output_shape=self.input_shape_router) if model_config.get('encoder',
                                                                                                  False) else nn.Identity()
+        self.unsupervised_router = not model_config['router'][0]['supervised']
+        self.router_config = model_config['router'][0]
+        self.router = utils.get_router(self)
 
     def to(self, device):
         self.experts.to(device)
@@ -164,7 +164,7 @@ class MixtureOfExperts(nn.Module):
                     nn.init.zeros_(layer.bias)
 
     def train_router(self, epoch):
-        if epoch % self.alternate == 0 and epoch > self.alternate:
+        if True or epoch % self.alternate == 0 and epoch > self.alternate:
             try:
                 self.router.learn()
             except Exception as e:

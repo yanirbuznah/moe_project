@@ -21,8 +21,10 @@ class DQN(nn.Module):
         self.fc2 = nn.LazyLinear(action_dim)
 
     def forward(self, x):
-        x = self.backbone(x)
-        x = x.view(x.size(0), -1)
+        with torch.no_grad():
+            x = self.backbone(x)
+            x = x.view(x.size(0), -1)
+
         x = self.fc1(x)
         x = torch.relu(x)
         x = self.fc2(x)
@@ -88,7 +90,7 @@ class Agent:
     def __init__(self, model: MixtureOfExperts):
         self.model = model
         self.config = model.router_config['model_config']
-        backbone = self._get_backbone()
+        backbone = model.encoder
         self.env = CustomEnv(model)
         self.state_dim = torch.prod(torch.tensor(self.env.observation_space.shape)).item()
         self.action_dim = self.env.action_space.n

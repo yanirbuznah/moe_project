@@ -3,7 +3,6 @@ import torchvision
 from torch import nn
 
 from agents import dqn, ppo
-from agents.custom_env import CustomEnv
 from losses import CrossEntropyLoss, MSELoss, L1Loss, SwitchLoadBalancingLoss, LossWrapper
 from metrics.MetricsFactory import MetricsFactory
 from models.MLP import MLP
@@ -37,7 +36,7 @@ def get_output_shape(train_set=None, output_shape=None):
         raise ValueError("Either train_set or output_shape must be provided")
 
 
-def get_model(config: dict,*, train_set=None, output_shape=None):
+def get_model(config: dict, *, train_set=None, output_shape=None):
     if config is None:
         return nn.Identity()
     model_config = config['model'] if 'model' in config.keys() else config
