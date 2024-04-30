@@ -66,7 +66,7 @@ class ReplayBuffer:
         idxs = np.random.choice(len(self.state), size=batch_size, p=probs)
         return self.state[idxs].to(device), self.action[idxs].to(device), self.reward[idxs].to(device)
 
-    def sample_batch_with_exponentially_smoothing(self, batch_size, alpha=0.0005, device='cpu'):
+    def sample_batch_with_exponentially_smoothing(self, batch_size, alpha=0.0001, device='cpu'):
         # create a list of probabilities for each sample
         probs = np.array([alpha * (1 - alpha) ** i for i in range(0, len(self.state), batch_size)])
         # normalize the probabilities
