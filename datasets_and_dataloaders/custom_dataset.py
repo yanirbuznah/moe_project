@@ -9,20 +9,21 @@ from datasets_and_dataloaders import utils as dutils
 
 class CustomDataset(Dataset):
     def __init__(self, config: dict, train: bool):
-        dataset = dutils.get_dataset(config['dataset'], train)
+        self.dataset = dutils.get_dataset(config['dataset'], train)
+        self.dataset_name = config['dataset']
         self.transform = dutils.get_transforms_from_dict(config['transforms'],train) if config['transform'] else None
         self.superclasses, self.superclasses_labels = None, None
         try:
-            self.data = dataset['image']
-            self.classes = dataset.features['label'].names
-            self.labels = dataset['label']
+            self.data = self.dataset['image']
+            self.classes = self.dataset.features['label'].names
+            self.labels = self.dataset['label']
         except:
-            self.data = dataset.data
-            self.classes = dataset.classes
-            self.labels = dataset.targets
-            if hasattr(dataset, 'superclasses'):
-                self.superclasses = dataset.superclasses
-                self.superclasses_labels = dataset.supertargets
+            self.data = self.dataset.data if hasattr(self.dataset, 'data') else self.dataset.imgs
+            self.classes = self.dataset.classes
+            self.labels = self.dataset.targets
+            if hasattr(self.dataset, 'superclasses'):
+                self.superclasses = self.dataset.superclasses
+                self.superclasses_labels = self.dataset.supertargets
 
         if isinstance(self.data[0], PIL.Image.Image):
             self.data = [x.convert('RGB') for x in self.data]
@@ -32,6 +33,8 @@ class CustomDataset(Dataset):
 
     def __getitem__(self, index):
 
+        if self.dataset_name == 'imagenet':
+            return self.dataset[index]
         # apply the transform (if any) to the data tensor
         x = self.transform(self.data[index])
 
