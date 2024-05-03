@@ -40,9 +40,12 @@ class CustomDataset(Dataset):
         return len(self.data)
 
     def __getitem__(self, index):
+        x = self.data[index]
+        if isinstance(x, str):
+            x = Image.open(x)
 
         # apply the transform (if any) to the data tensor
-        x = self.transform(self.data[index])
+        x = self.transform(x)
 
         # get the label for this sample
         label = self.labels[index]
@@ -56,6 +59,9 @@ class CustomDataset(Dataset):
         return self.data[index]
 
     def get_transformed_tensor(self, index):
+        if isinstance(self.data[index], str):
+            return self.transform(Image.open(self.data[index]))
+
         return self.transform(self.data[index])
 
     def get_label(self, index):
