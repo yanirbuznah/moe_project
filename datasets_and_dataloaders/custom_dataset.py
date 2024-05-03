@@ -30,8 +30,8 @@ class CustomDataset(Dataset):
         if isinstance(self.data[0], tuple):
             self.data = [x[0] for x in self.data]
 
-        if isinstance(self.data[0], str):
-            self.data = [Image.open(x) for x in self.data]
+        # if isinstance(self.data[0], str):
+        #     self.data = [Image.open(x) for x in self.data]
 
         if isinstance(self.data[0], Image.Image):
             self.data = [x.convert('RGB') for x in self.data]
