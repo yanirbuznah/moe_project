@@ -1,0 +1,33 @@
+log:
+  wandb_project_name: null #imagenet_debug_experiment
+  experiment_name: dummy_experiment
+  experiment_description: dummy_description
+
+# experiment: !include experiment_configs/experiment_config.yml
+
+dataloader: !include dataloader_configs/imagenet_dataloader_config.yml
+
+model:
+  model: !include model_configs/ddqn_model_config.yml
+  loss: !include loss_configs/moe_loss_config.yml
+  optimizer: Adam
+  lr: !!float 0.001
+
+
+metrics:
+    - SuperClassConfusionMatrix
+    - MOEConfusionMatrix
+    - ConfusionMatrix
+    - Accuracy
+    - F1
+    - Precision
+    - Recall
+#    - pvalue
+#    - RouterVsRandomAcc
+    - ExpertEntropy
+    - SuperClassEntropy
+
+seed: 0
+epochs: 100
+
+# Path: configs\experiment_configs\dummy_config.yml
