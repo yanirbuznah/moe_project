@@ -1,6 +1,7 @@
 import random
 
-import PIL
+
+from PIL import Image
 import torch
 from torch.utils.data import Dataset
 
@@ -30,9 +31,9 @@ class CustomDataset(Dataset):
             self.data = [x[0] for x in self.data]
 
         if isinstance(self.data[0], str):
-            self.data = [PIL.Image.open(x) for x in self.data]
+            self.data = [Image.open(x) for x in self.data]
 
-        if isinstance(self.data[0], PIL.Image.Image):
+        if isinstance(self.data[0], Image.Image):
             self.data = [x.convert('RGB') for x in self.data]
 
     def __len__(self):
