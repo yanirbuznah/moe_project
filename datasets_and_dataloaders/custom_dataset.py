@@ -27,7 +27,7 @@ class CustomDataset(Dataset):
                 self.superclasses_labels = self.dataset.supertargets
 
         if isinstance(self.data[0], tuple):
-            self.data = [(x[0], x[1]) for x in self.data]
+            self.data = [x[0] for x in self.data]
 
         if isinstance(self.data[0], str):
             self.data = [PIL.Image.open(x) for x in self.data]
