@@ -43,6 +43,8 @@ class CustomDataset(Dataset):
         x = self.data[index]
         if isinstance(x, str):
             x = Image.open(x)
+            if x.mode != 'RGB':
+                x = x.convert('RGB')
 
         # apply the transform (if any) to the data tensor
         x = self.transform(x)
