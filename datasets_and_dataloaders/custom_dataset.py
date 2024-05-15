@@ -78,14 +78,17 @@ class CustomDataset(Dataset):
 
     def get_random_mini_batch(self, batch_size):
         indices = random.sample(range(0, len(self.data)), batch_size)
+        tmp = self[indices]
         X = torch.stack([self[i][0] for i in indices])
         y = torch.LongTensor([self[i][1] for i in indices])
         return (X, y)
 
     def get_random_mini_batch_after_transform(self, batch_size):
         indices = random.sample(range(0, len(self.data)), batch_size)
-        X = torch.stack([self.get_transformed_tensor(i) for i in indices])
-        y = torch.LongTensor([self[i][1] for i in indices])
+        tmp = [self[i] for i in indices]
+        X, y, _ = zip(*tmp)
+        X = torch.stack(X)
+        y = torch.LongTensor(y)
         return (X, y)
 
     def get_random_sample_by_class(self, class_name):
