@@ -7,7 +7,7 @@ backbone_output_shape: 128
 action_assignment_strategy: LinearAssignmentByDiff
 reward_function: SpecializationAndConsistency
 hidden_dim: 128
-buffer_capacity: 51200
+buffer_capacity: 61440 # 15 * 4096 - Has to be a multiple of batch_size
 batch_size: 4096
 gamma: 0.99
 epsilon: 0.0
