@@ -1,13 +1,6 @@
-import subprocess
-
-import torch
-
-from logger import Logger
-
 import torch
 from pynvml import *
 
-logger = Logger().logger(__name__)
 
 def get_unoccupied_device():
     try:
@@ -24,7 +17,6 @@ def get_unoccupied_device():
     except NVMLError as error:
         print("Failed to get GPU information:", error)
         return torch.device('cpu')
-
 
 
 if __name__ == '__main__':
