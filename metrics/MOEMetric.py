@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 import torch
-from scipy.stats import chi2_contingency
+from scipy.stats import chi2_contingency, entropy
 from sklearn.metrics import confusion_matrix
 
 from logger import Logger
@@ -203,9 +203,9 @@ class Consistency(MOEMetric):
         for i in range(len(self.labels)):
             consistency[self.gates[i], self.labels[i]] += 1
         prob_consistency = consistency / np.maximum(consistency.sum(axis=0, keepdims=True), 1)
-        entropy = -np.sum(prob_consistency * np.log2(prob_consistency + 1e-10), axis=1)
-        normalized_entropy = entropy / np.log2(self.num_experts)
-        return 1 - normalized_entropy
+        H = entropy(prob_consistency, base=2, axis=0)
+        max_entropy = np.log2(self.num_experts)
+        return 1 - (H / max_entropy)
 
 
 class Specialization(MOEMetric):
