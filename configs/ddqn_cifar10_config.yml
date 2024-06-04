@@ -26,6 +26,8 @@ metrics:
 #    - RouterVsRandomAcc
     - ExpertEntropy
     - SuperClassEntropy
+    - Consistency
+    - Specialization
 
 seed: 0
 epochs: 100

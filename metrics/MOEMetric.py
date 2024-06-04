@@ -127,6 +127,7 @@ class MOEMetric(Metric, metaclass=SingletonMeta):
     def super_classes_names(self):
         return self.moe_preprocessor.super_classes_names
 
+
 class RouterVSRandomAcc(MOEMetric):
     def compute(self):
         diff = self.correct.mean(dtype=float) - self.random_correct.mean(dtype=float)
@@ -145,6 +146,8 @@ class SuperClassConfusionMatrix(MOEMetric):
             return -1
         return pd.DataFrame(confusion_matrix(self.super_classes, self.gates)[:, :self.num_experts],
                             index=self.super_classes_names)
+
+
 class PValue(MOEMetric):
     def compute(self):
         conmat = confusion_matrix(self.labels, self.gates)[:, :self.num_experts]
@@ -192,3 +195,28 @@ class ExpertAccuracy(MOEMetric):
         if len(self.super_classes) == 0:
             return -1
         return sum([1 for p, t in zip(self.super_classes, self.gates) if p == t]) / len(self.super_classes)
+
+
+class Consistency(MOEMetric):
+    def compute(self):
+        consistency = np.zeros((self.num_experts, len(self.class_names)))
+        for i in range(len(self.labels)):
+            consistency[self.gates[i], self.labels[i]] += 1
+        prob_consistency = consistency / np.maximum(consistency.sum(axis=0, keepdims=True), 1)
+        entropy = -np.sum(prob_consistency * np.log2(prob_consistency + 1e-10), axis=1)
+        normalized_entropy = entropy / np.log2(self.num_experts)
+        return 1 - normalized_entropy
+
+
+class Specialization(MOEMetric):
+
+    def compute(self):
+        specialization = np.zeros((self.num_experts, len(self.class_names)))
+        total_assignments = np.zeros_like(specialization)
+        for i in range(len(self.labels)):
+            specialization[self.gates[i], self.labels[i]] += self.correct[i]
+            total_assignments[self.gates[i], self.labels[i]] += 1
+        assert total_assignments.sum() == len(self.labels)
+
+        specialization /= np.maximum(total_assignments, 1)
+        return specialization
