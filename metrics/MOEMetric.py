@@ -203,8 +203,8 @@ class Consistency(MOEMetric):
         for i in range(len(self.labels)):
             consistency[self.gates[i], self.labels[i]] += 1
         prob_consistency = consistency / np.maximum(consistency.sum(axis=0, keepdims=True), 1)
-        H = entropy(prob_consistency, base=2, axis=0)
-        max_entropy = np.log2(self.num_experts)
+        H = entropy(prob_consistency, base=2, axis=1)
+        max_entropy = np.log2(len(self.class_names))
         return 1 - (H / max_entropy)
 
 
