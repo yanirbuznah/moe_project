@@ -25,7 +25,7 @@ def get_router(model: MixtureOfExperts):
     if 'rl' in model.router_config['type'].lower():
         return get_agent(model)
     else:
-        return get_model(model.router_config['model_config'], model.num_experts, model.input_shape_router)
+        return get_model(model.router_config['model_config'], output_shape=model.num_experts)
 
 
 def get_output_shape(train_set=None, output_shape=None):
@@ -37,7 +37,7 @@ def get_output_shape(train_set=None, output_shape=None):
         raise ValueError("Either train_set or output_shape must be provided")
 
 
-def get_model(config: dict,*, train_set=None, output_shape=None):
+def get_model(config: dict, *, train_set=None, output_shape=None):
     if config is None:
         return nn.Identity()
     model_config = config['model'] if 'model' in config.keys() else config

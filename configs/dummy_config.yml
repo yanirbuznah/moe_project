@@ -1,5 +1,5 @@
 log:
-  wandb_project_name: null #cifar10_debug_experiment
+  wandb_project_name: cifar10_debug_experiment
   experiment_name: dummy_experiment
   experiment_description: dummy_description
 
@@ -8,7 +8,7 @@ log:
 dataloader: !include dataloader_configs/cifar10_dataloader_config.yml
 
 model:
-  model: !include model_configs/ddqn_model_config.yml
+  model: !include model_configs/resnet18_model_config.yml
   loss: !include loss_configs/moe_loss_config.yml
   optimizer: Adam
   lr: !!float 0.001
@@ -26,6 +26,8 @@ metrics:
 #    - RouterVsRandomAcc
     - ExpertEntropy
     - SuperClassEntropy
+    - Consistency
+    - Specialization
 
 seed: 0
 epochs: 100
