@@ -1,7 +1,7 @@
 log:
   wandb_project_name: cifar10_debug_experiment
-  experiment_name: dummy_experiment
-  experiment_description: dummy_description
+  experiment_name: cifar10_debug_experiment
+  experiment_description: new expertise metric
 
 # experiment: !include experiment_configs/experiment_config.yml
 
@@ -28,6 +28,7 @@ metrics:
     - SuperClassEntropy
     - Consistency
     - Specialization
+    - NewSpecialization
 
 seed: 0
 epochs: 100

@@ -1,7 +1,7 @@
 from metrics import *
 from metrics.ClassificationMetric import ClassificationMetric
 from metrics.MOEMetric import MOEMetric, PValue, MOEConfusionMatrix, RouterVSRandomAcc, \
-    ExpertEntropy, SuperClassEntropy, SuperClassConfusionMatrix, Consistency, Specialization
+    ExpertEntropy, SuperClassEntropy, SuperClassConfusionMatrix, Consistency, Specialization, NewSpecialization
 
 
 class MetricsFactory:
@@ -40,6 +40,9 @@ class MetricsFactory:
                 self.metrics_list.append(Consistency())
             elif metric.lower() == 'specialization':
                 self.metrics_list.append(Specialization())
+            elif metric.lower() == 'newspecialization':
+                self.metrics_list.append(NewSpecialization())
+
             # else:
             #     self.metrics_list.append(MOEMetric())
             else:
@@ -56,7 +59,9 @@ class MetricsFactory:
         for metric in self.metrics_list:
             results[metric.get_name()] = metric.compute()
         if 'Consistency' in results and 'Specialization' in results:
-            results['Expertise'] = (results['Consistency'] @ results['Specialization']).mean()
+            results['Expertise'] = results['Consistency'] * results['Specialization'].mean()
+        if 'Consistency' in results and 'NewSpecialization' in results:
+            results['NewExpertise'] = results['Consistency'] * results['NewSpecialization']
         return results
 
     def update_metrics(self, *args, **kwargs):
