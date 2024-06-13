@@ -253,14 +253,16 @@ class Specialization(MOEMetric):
 class NewSpecialization(MOEMetric):
 
     def compute(self):
-        specialization = np.zeros((self.num_experts, len(self.class_names)))
+        accuracy = np.zeros((self.num_experts, len(self.class_names)))
         total_assignments = np.zeros_like(specialization)
         for i in range(len(self.labels)):
-            specialization[self.gates[i], self.labels[i]] += self.correct[i]
+            accuracy[self.gates[i], self.labels[i]] += self.correct[i]
             total_assignments[self.gates[i], self.labels[i]] += 1
-        total_assignments_probs = total_assignments / total_assignments.sum(axis=1, keepdims=True)
-        specialization /= np.maximum(total_assignments, 1)
-        return specialization * total_assignments_probs
+        total_assignments_probs = total_assignments / total_assignments.sum(axis=0, keepdims=True)
+        accuracy /= np.maximum(total_assignments, 1)  # calculate the accuracy per expert per class
+        specialization = (accuracy * total_assignments_probs).sum(axis=0).mean()  # calculate the specialization
+        return specialization
+
 
     @staticmethod
     def compute_manual(*, gates, labels, correct, num_experts, num_classes):
