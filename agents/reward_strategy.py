@@ -2,6 +2,7 @@ import numpy as np
 import torch
 from torch import nn
 
+from metrics.MOEMetric import Specialization, Consistency
 from models.MOE import MixtureOfExperts
 
 
@@ -36,8 +37,10 @@ class RewardStrategy:
             return self._specialization_and_consistency
         elif self.reward_type == 'Entropy':
             return self._entropy
-        elif self.reward_type == 'NoaReward':
-            return self._noa_reward
+        elif self.reward_type == 'RegretBased':
+            return self._regret_based_reward
+        elif self.reward_type == 'Expertise':
+            return self._new_expertise_reward
         else:
             return self._proposal_specialization_and_consistency
 
@@ -162,7 +165,7 @@ class RewardStrategy:
         consistency, specialization = self._get_C_matrix(preds, action.detach(), y)
         load = torch.FloatTensor(consistency.sum(axis=1)) / self.num_of_classes
         acc = preds == y
-        output_of_true_class = out[torch.arange(len(out)), y]
+        # output_of_true_class = out[torch.arange(len(out)), y]
         # rewards = [
         # output_of_true_class[i] * consistency[action[i], y[i]] * specialization[action[i], y[i]] / load[action[i]]
         # for i in range(len(acc))]
@@ -171,6 +174,18 @@ class RewardStrategy:
         # rewards = [acc[i] * consistency[action[i], y[i]] * specialization[action[i],y[i]] * load_var for i in range(len(acc))]
         rewards = torch.stack(rewards) if isinstance(rewards[0], torch.Tensor) else torch.FloatTensor(rewards)
         return rewards
+    def _get_C_matrix(self, preds, routes, true_assignments):
+        specialization = np.zeros((self.num_of_experts, self.num_of_classes))
+        consistency = np.zeros((self.num_of_experts, self.num_of_classes))
+        for i in range(len(preds)):
+            specialization[routes[i], true_assignments[i]] += int(true_assignments[i] == preds[i])
+            consistency[routes[i], true_assignments[i]] += 1
+
+        specialization = specialization / np.maximum(consistency, 1)  #
+        consistency = consistency / np.maximum(consistency.sum(axis=0, keepdims=True), 1)
+        return consistency, specialization
+
+
 
     def _entropy(self, sample, action, model, out=None, y=None):
         action_count = torch.bincount(action, minlength=self.num_of_experts)
@@ -193,7 +208,7 @@ class RewardStrategy:
         action = self._linear_assignment(routes).type_as(action).to(action.device)
         return self._proposal_specialization_and_consistency(sample, action, model, out, y)
 
-    def _noa_reward(self, sample, action, model: MixtureOfExperts, out=None, y=None, k=2):
+    def _regret_based_reward(self, sample, action, model, out=None, y=None, k=2):
         # This is appropriate only for actor critic methods
         dist, values = self._get_routes_from_model(model, sample)
         routes = dist.probs
@@ -203,7 +218,7 @@ class RewardStrategy:
         out = nn.functional.softmax(out, dim=1)
         preds = torch.argmax(out, dim=1)
 
-        current = max_probs * out[torch.arange(len(out)), y]
+        current = max_probs * out[torch.arange(len(out)), y] # best_expert_prob * prob_of_right_class
         out_all = [out]
         for i in range(1, k):
             out_i, _ = self._get_output_from_model(topk.indices[:, i], model, sample)
@@ -212,13 +227,14 @@ class RewardStrategy:
         out_all = torch.stack(out_all)
         preds_on_right = out_all[:, torch.arange(len(out)), y]
         best_pred, _ = torch.max(preds_on_right, dim=0)
-        action_count = torch.bincount(action, minlength=self.num_of_experts)
-        action_probs = action_count / action_count.sum()
-        consistency, specialization = self._get_C_matrix(preds, action.detach(), y)
-        load = torch.FloatTensor(consistency.sum(axis=1)) / self.num_of_classes
-        entropy = -torch.sum(action_probs * torch.log2(action_probs + 1e-10)) / np.log2(self.num_of_experts)
-        reward = entropy + (current - best_pred)
-        return current - best_pred
+        regret = best_pred - current
+        return -1 * regret
+        # action_count = torch.bincount(action, minlength=self.num_of_experts)
+        # action_probs = action_count / action_count.sum()
+        # consistency, specialization = self._get_C_matrix(preds, action.detach(), y)
+        # load = torch.FloatTensor(consistency.sum(axis=1)) / self.num_of_classes
+        # entropy = -torch.sum(action_probs * torch.log2(action_probs + 1e-10)) / np.log2(self.num_of_experts)
+        # reward = entropy + (current - best_pred)
 
     def _get_consistency(self, preds, routes, true_assignments):
         consistency = np.zeros((self.num_of_experts, self.num_of_classes))
@@ -249,6 +265,18 @@ class RewardStrategy:
 
     def _tanh(self, x, alpha=2.5):
         return np.tanh(alpha * x)
+
+    def _new_expertise_reward(self, sample, action, model, out=None, y=None):
+        out, y = self._get_output_from_model(action, model, sample) if out is None else (out, y)
+        preds = torch.argmax(out, dim=1)
+        correct = preds == y
+        specialization = Specialization.compute_manual(
+            gates=action, labels=y, correct=correct, num_experts=self.num_of_experts, num_classes=self.num_of_classes)
+        consistency = Consistency.compute_manual(
+            gates=action, labels=y, num_experts=self.num_of_experts, num_classes=self.num_of_classes)
+        rewards = [correct[i] * specialization * consistency for i in range(len(correct))]
+        return rewards
+
 
 # -CE * max(0.5, p)
 # -CE * p   (p = probability of expert)

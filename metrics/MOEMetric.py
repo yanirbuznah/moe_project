@@ -1,3 +1,5 @@
+from argparse import Namespace
+
 import numpy as np
 import pandas as pd
 import torch
@@ -139,6 +141,9 @@ class MOEConfusionMatrix(MOEMetric):
     def compute(self):
         return pd.DataFrame(confusion_matrix(self.labels, self.gates)[:, :self.num_experts], index=self.class_names)
 
+    @staticmethod
+    def compute_manual(*, gates, labels, num_experts, class_names):
+        return pd.DataFrame(confusion_matrix(labels, gates)[:, :num_experts], index=class_names)
 
 class SuperClassConfusionMatrix(MOEMetric):
     def compute(self):
@@ -202,10 +207,21 @@ class Consistency(MOEMetric):
         consistency = np.zeros((self.num_experts, len(self.class_names)))
         for i in range(len(self.labels)):
             consistency[self.gates[i], self.labels[i]] += 1
-        prob_consistency = consistency / np.maximum(consistency.sum(axis=1, keepdims=True), 1)
-        H = entropy(prob_consistency, base=2, axis=1)
-        max_entropy = np.log2(len(self.class_names))
-        return 1 - (H / max_entropy)
+        prob_consistency = consistency / np.maximum(consistency.sum(axis=0, keepdims=True), 1)  # pro
+
+        H = entropy(prob_consistency, base=2)  #
+        max_entropy = np.log2(self.num_experts)
+        return 1 - (H.mean() / max_entropy)
+
+    @staticmethod
+    def compute_manual(*, gates, labels, num_experts, num_classes):
+        consistency = np.zeros((num_experts, num_classes))
+        for i in range(len(labels)):
+            consistency[gates[i], labels[i]] += 1
+        prob_consistency = consistency / np.maximum(consistency.sum(axis=0, keepdims=True), 1)
+        H = entropy(prob_consistency, base=2)
+        max_entropy = np.log2(num_experts)
+        return 1 - (H.mean() / max_entropy)
 
 
 class Specialization(MOEMetric):
@@ -220,3 +236,72 @@ class Specialization(MOEMetric):
 
         specialization /= np.maximum(total_assignments, 1)
         return specialization
+
+    @staticmethod
+    def compute_manual(*, gates, labels, correct, num_experts, num_classes):
+        specialization = np.zeros((num_experts, num_classes))
+        total_assignments = np.zeros_like(specialization)
+        for i in range(len(labels)):
+            specialization[gates[i], labels[i]] += correct[i]  # count the correct predictions
+            total_assignments[gates[i], labels[i]] += 1  # count the total number of predictions
+        assert total_assignments.sum() == len(labels)
+
+        specialization /= np.maximum(total_assignments, 1)  # calculate the accuracy per expert per class
+        return specialization
+
+
+class NewSpecialization(MOEMetric):
+
+    def compute(self):
+        specialization = np.zeros((self.num_experts, len(self.class_names)))
+        total_assignments = np.zeros_like(specialization)
+        for i in range(len(self.labels)):
+            specialization[self.gates[i], self.labels[i]] += self.correct[i]
+            total_assignments[self.gates[i], self.labels[i]] += 1
+        total_assignments_probs = total_assignments / total_assignments.sum(axis=1, keepdims=True)
+        specialization /= np.maximum(total_assignments, 1)
+        return specialization * total_assignments_probs
+
+    @staticmethod
+    def compute_manual(*, gates, labels, correct, num_experts, num_classes):
+        accuracy = np.zeros((num_experts, num_classes))
+        total_assignments = np.zeros_like(accuracy)
+        for i in range(len(labels)):
+            accuracy[gates[i], labels[i]] += correct[i]  # count the correct predictions
+            total_assignments[gates[i], labels[i]] += 1  # count the total number of predictions
+        total_assignments_probs = total_assignments / total_assignments.sum(axis=0, keepdims=True)
+        accuracy /= np.maximum(total_assignments, 1)  # calculate the accuracy per expert per class
+        specialization = (accuracy * total_assignments_probs).sum(axis=0).mean()  # calculate the specialization
+        return specialization
+
+
+
+
+if __name__ == '__main__':
+    import pickle
+
+    def convert_args(x):
+        x = {'gates': x['routes'], 'labels': x['target'], 'correct': x['target'] == torch.argmax(x['output'], dim=-1),
+             'num_experts': len(x['counts']), 'num_classes': 1 + max(x['target']).item()}
+        return x
+
+    x = pickle.load(open('kwargs.pickle', 'rb'))
+
+    confusion_matrix1 = MOEConfusionMatrix.compute_manual(
+        gates=x['gates'], labels=x['labels'], num_experts=x['num_experts'], class_names=[str(i) for i in range(x['num_classes'])])
+
+
+    res1 = Specialization.compute_manual(gates=x['gates'], labels=x['labels'], correct=x['correct'],
+                                         num_experts=x['num_experts'], num_classes=x['num_classes'])
+
+    res2 = NewSpecialization.compute_manual(gates=x['gates'], labels=x['labels'], correct=x['correct'],
+                                            num_experts=x['num_experts'], num_classes=x['num_classes'])
+
+    res3 = Consistency.compute_manual(gates=x['gates'], labels=x['labels'], num_experts=x['num_experts'],
+                                      num_classes=x['num_classes'])
+    print(f'Confusion Matrix:\n{confusion_matrix1}')
+    print(f'Specialization: {res1}')
+    print(f'New Specialization: {res2}')
+    print(f'Consistency: {res3}')
+    print('Expertise:', res1.mean() * res3)
+    print('New Expertise:', res2 * res3)
