@@ -254,7 +254,7 @@ class NewSpecialization(MOEMetric):
 
     def compute(self):
         accuracy = np.zeros((self.num_experts, len(self.class_names)))
-        total_assignments = np.zeros_like(specialization)
+        total_assignments = np.zeros_like(accuracy)
         for i in range(len(self.labels)):
             accuracy[self.gates[i], self.labels[i]] += self.correct[i]
             total_assignments[self.gates[i], self.labels[i]] += 1
