@@ -1,0 +1,13 @@
+base_config: ddqn_cifar10_config.yml
+
+changes:
+  - key:
+      model:
+        model:
+          router:
+          - model_config:
+              reward_function
+    options:
+      - RegretBased
+      - Expertise
+      - SpecializationAndConsistency

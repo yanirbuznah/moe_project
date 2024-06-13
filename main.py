@@ -1,19 +1,16 @@
+import pickle
 import traceback
 from pprint import pformat
-
-from experiment import Experiment
-from logger import Logger
-from parameters_parser import parse_args
 import wandb
 
+from logger import Logger, init_logger
+# if not Logger.initialized:
+#     init_logger()
+from experiment import Experiment
+from parameters_parser import parse_args
 
 
-
-def main():
-    config = parse_args()
-    wandb_project_name = config['log'].get('wandb_project_name', None)
-    if wandb_project_name is not None:
-        wandb.init(project=wandb_project_name, config=config)
+def run_experiment(config):
     logger = Logger().logger(__name__)
     logger.info('Starting experiment')
     logger.info(pformat(config))
@@ -25,8 +22,38 @@ def main():
     finally:
         Logger.shutdown(experiment.experiment_path)
         wandb.finish()
-        exit(0)
     logger.info('Experiment finished')
+
+
+def main():
+    config = parse_args()
+    wandb_project_name = config['log'].get('wandb_project_name', None)
+    def set_value_by_key_from_nested_dict(nested_dict, key, value):
+        for k, v in nested_dict.items():
+            key_name = list(key.keys())[0] if isinstance(key, dict) else key
+            if k == key_name:
+                if isinstance(v, dict):
+                    # next_key = list(key[k].keys())[0]
+                    set_value_by_key_from_nested_dict(v, key[key_name], value)
+                elif isinstance(v, list):
+                    set_value_by_key_from_nested_dict(v[0], key[key_name][0], value)
+                else:
+                    nested_dict[k] = value
+
+
+    if 'changes' in config:
+        for change in config['changes']:
+            for option in change['options']:
+                set_value_by_key_from_nested_dict(config, change['key'], option)
+
+                if wandb_project_name is not None:
+                    wandb.init(project=wandb_project_name, config=config)
+                run_experiment(config)
+    else:
+        if wandb_project_name is not None:
+            wandb.init(project=wandb_project_name, config=config)
+        run_experiment(config)
+
 
 if __name__ == '__main__':
     main()
