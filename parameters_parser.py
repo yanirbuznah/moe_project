@@ -22,6 +22,10 @@ def load_args(config_path):
         try:
             YamlIncludeConstructor.add_to_loader_class(loader_class=yaml.FullLoader, base_dir=os.path.dirname(config_path))
             args = yaml.load(stream, Loader=yaml.FullLoader)
+            if 'base_config' in args:
+                base_config = load_args(args['base_config'])
+                base_config.update(args)
+                args = base_config
         except yaml.YAMLError as exc:
             logger.error('Error loading config file: %s', exc)
             raise
