@@ -8,6 +8,16 @@ changes:
           - model_config:
               reward_function
     options:
-      - RegretBased
+      - Proposal
       - Expertise
       - SpecializationAndConsistency
+  - key:
+      model:
+        model:
+          router:
+            - model_config:
+                action_assignment_strategy
+    options:
+      - LinearAssignmentByDiff
+      - LinearAssignmentWithCapacity
+      - none
