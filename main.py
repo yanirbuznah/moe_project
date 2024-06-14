@@ -3,7 +3,7 @@ import traceback
 from pprint import pformat
 import wandb
 
-from logger import Logger, init_logger
+from logger import Logger #, init_logger
 # if not Logger.initialized:
 #     init_logger()
 from experiment import Experiment
@@ -28,6 +28,7 @@ def run_experiment(config):
 def main():
     config = parse_args()
     wandb_project_name = config['log'].get('wandb_project_name', None)
+
     def set_value_by_key_from_nested_dict(nested_dict, key, value):
         for k, v in nested_dict.items():
             key_name = list(key.keys())[0] if isinstance(key, dict) else key
@@ -39,7 +40,6 @@ def main():
                     set_value_by_key_from_nested_dict(v[0], key[key_name][0], value)
                 else:
                     nested_dict[k] = value
-
 
     if 'changes' in config:
         for change in config['changes']:
