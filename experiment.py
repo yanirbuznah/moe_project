@@ -57,13 +57,13 @@ class Experiment:
         return evaluate_result
 
     def run_rl_combined_model(self, epoch):
-        # utils.run_train_epoch(self.model, self.train_loader)
-        # if wandb.run:
-        #     wandb.watch(self.model.model)
+        utils.run_train_epoch(self.model, self.train_loader)
+        if wandb.run:
+            wandb.watch(self.model.model)
         self.model.model.train_router(epoch)
-        # train_evaluate_results = self.evaluate_and_save_results(epoch, mode='train', model=self.model)
+        train_evaluate_results = self.evaluate_and_save_results(epoch, mode='train', model=self.model)
         validate_evaluate_results = self.evaluate_and_save_results(epoch, mode='test', model=self.model)
-        # logger.info(f"Train: {train_evaluate_results}")
+        logger.info(f"Train: {train_evaluate_results}")
         logger.info(f"Validate: {validate_evaluate_results}")
         if wandb.run:
             train_evaluate_results = {f'train_{k}': v for k, v in train_evaluate_results.items()}
