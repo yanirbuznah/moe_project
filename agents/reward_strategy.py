@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from torch import nn
 
-from metrics.MOEMetric import Specialization, Consistency
+from metrics.MOEMetric import Specialization, Consistency, NewSpecialization
 from models.MOE import MixtureOfExperts
 
 
@@ -270,11 +270,13 @@ class RewardStrategy:
         out, y = self._get_output_from_model(action, model, sample) if out is None else (out, y)
         preds = torch.argmax(out, dim=1)
         correct = preds == y
-        specialization = Specialization.compute_manual(
+        specialization = NewSpecialization.compute_manual(
             gates=action, labels=y, correct=correct, num_experts=self.num_of_experts, num_classes=self.num_of_classes)
         consistency = Consistency.compute_manual(
             gates=action, labels=y, num_experts=self.num_of_experts, num_classes=self.num_of_classes)
+        correct = correct.cpu().numpy()
         rewards = [correct[i] * specialization * consistency for i in range(len(correct))]
+        rewards = torch.stack(rewards) if isinstance(rewards[0], torch.Tensor) else torch.FloatTensor(rewards)
         return rewards
 
 
