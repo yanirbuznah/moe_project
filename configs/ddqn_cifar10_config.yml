@@ -9,7 +9,7 @@ dataloader: !include dataloader_configs/cifar10_dataloader_config.yml
 
 model:
   model: !include model_configs/ddqn_model_config.yml
-  loss: !include loss_configs/moe_loss_config.yml
+  loss: !include loss_configs/cross_entropy_loss_config.yml
   optimizer: Adam
   lr: !!float 0.001
 
