@@ -8,8 +8,9 @@ changes:
           - model_config:
               reward_function
     options:
-      - Proposal
+      - SpearmanCorrelation
       - Expertise
+      - Proposal
       - SpecializationAndConsistency
   - key:
       model:

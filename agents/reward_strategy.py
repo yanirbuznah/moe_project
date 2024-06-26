@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+from scipy.stats import spearmanr
 from torch import nn
 
 from metrics.MOEMetric import Specialization, Consistency, NewSpecialization
@@ -41,6 +42,8 @@ class RewardStrategy:
             return self._regret_based_reward
         elif self.reward_type == 'Expertise':
             return self._new_expertise_reward
+        elif self.reward_type == 'SpearmanCorrelation':
+            return self._spearman_correlation_reward
         else:
             return self._proposal_specialization_and_consistency
 
@@ -279,6 +282,23 @@ class RewardStrategy:
         rewards = torch.stack(rewards) if isinstance(rewards[0], torch.Tensor) else torch.FloatTensor(rewards)
         return rewards
 
+    def _spearman_correlation_reward(self, sample, action, model, out=None, y=None, k=3):
+        k = min(k, self.num_of_experts)
+        batch_size = action.shape[0]
+        routes = self._get_routes_from_model(model, sample)
+        _, topk_routes = torch.topk(routes, k, dim=1)
+        # get output from topk models
+        out_all = [self._get_output_from_model(topk_routes[:, 0], model, sample)[0]]
+        for i in range(1, k):
+            out_i, _ = self._get_output_from_model(topk_routes[:, i], model, sample)
+            out_all.append(out_i)
+        # loss of the topk models
+        loss_all = [self.cf_entropy(out, sample[1].to(out.device)) for out in out_all]
+        loss_all = torch.stack(loss_all).T
+        # get topk by loss
+        _, topk_by_loss = torch.topk(loss_all, k, dim=1, largest=False)
+        spearman_corr = spearmanr(topk_routes.cpu().numpy(), topk_by_loss.cpu().numpy(), axis=1)
+        return torch.tensor(spearman_corr.correlation[torch.arange(0,batch_size), torch.arange(batch_size, batch_size * 2)])
 
 # -CE * max(0.5, p)
 # -CE * p   (p = probability of expert)
