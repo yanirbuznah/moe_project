@@ -19,6 +19,6 @@ changes:
             - model_config:
                 action_assignment_strategy
     options:
-      - LinearAssignmentByDiff
+#      - LinearAssignmentByDiff
       - LinearAssignmentWithCapacity
       - none
