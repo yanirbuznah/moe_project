@@ -4,7 +4,8 @@ from torch import nn
 
 from agents import dqn, ppo
 from agents.custom_env import CustomEnv
-from losses import CrossEntropyLoss, MSELoss, L1Loss, SwitchLoadBalancingLoss, LossWrapper, SpecializationLoss, ConsistencyLoss
+from losses import CrossEntropyLoss, MSELoss, L1Loss, SwitchLoadBalancingLoss, LossWrapper, SpecializationLoss, \
+    ConsistencyLoss
 from metrics.MetricsFactory import MetricsFactory
 from models.MLP import MLP
 from models.MOE import MixtureOfExperts

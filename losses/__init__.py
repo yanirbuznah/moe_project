@@ -3,4 +3,7 @@ from .CrossEntropyLoss import CrossEntropyLoss
 from .MSELoss import MSELoss
 from .L1Loss import L1Loss
 from .SwitchLoadBalancingLoss import SwitchLoadBalancingLoss
+from .SpecializationLoss import SpecializationLoss
+from .ConsistencyLoss import ConsistencyLoss
+from .SpearmanLoss import SpearmanLoss
 from .LossWrapper import LossWrapper
