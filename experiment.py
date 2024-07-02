@@ -70,8 +70,8 @@ class Experiment:
             validate_evaluate_results = {f'validate_{k}': v for k, v in validate_evaluate_results.items()}
             wandb.log({**train_evaluate_results, **validate_evaluate_results})
     def run_normal_model(self, epoch):
-        # utils.run_train_epoch(self.model, self.train_loader)
-        #
+        utils.run_train_epoch(self.model, self.train_loader)
+
         train_evaluate_results = self.evaluate_and_save_results(epoch, mode='train', model=self.model)
         validate_evaluate_results = self.evaluate_and_save_results(epoch, mode='test', model=self.model)
         logger.info(f"Train: {train_evaluate_results}")
