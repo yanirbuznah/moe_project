@@ -10,9 +10,9 @@ class CrossEntropyLoss(Loss):
 
 
     def __call__(self, *args, **kwargs):
-        y_pred = next(kwargs[y_pred] for y_pred in self.possible_y_pred if y_pred in kwargs.keys())
+        logits = kwargs['logits']   # cross entropy loss expect logits before softmax
         y_true = next(kwargs[y_true] for y_true in self.possible_y_true if y_true in kwargs.keys())
-        self._calc(y_pred, y_true)
+        self._calc(logits, y_true)
         return self.stat
 
     def _calc(self, y_pred, y_true):

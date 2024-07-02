@@ -17,6 +17,6 @@ class SwitchLoadBalancingLoss(Loss):
     def _calc(self, route_probabilities, counts):
         total = counts.sum(-1, keepdim=True)
         route_fraction = counts / total
-        route_prob = route_probabilities.sum(0) / total
+        route_prob = route_probabilities.sum(axis=0) / total
         num_of_experts = route_probabilities.shape[-1]
         self.stat = num_of_experts * (route_fraction * route_prob).sum()

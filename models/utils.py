@@ -4,7 +4,7 @@ from torch import nn
 
 from agents import dqn, ppo
 from agents.custom_env import CustomEnv
-from losses import CrossEntropyLoss, MSELoss, L1Loss, SwitchLoadBalancingLoss, LossWrapper
+from losses import CrossEntropyLoss, MSELoss, L1Loss, SwitchLoadBalancingLoss, LossWrapper, SpecializationLoss, ConsistencyLoss
 from metrics.MetricsFactory import MetricsFactory
 from models.MLP import MLP
 from models.MOE import MixtureOfExperts
@@ -103,6 +103,10 @@ def get_loss(loss: dict):
             return L1Loss(**v['params'])
         elif v['name'].lower() == 'switchloadbalancingloss':
             return SwitchLoadBalancingLoss()
+        elif v['name'].lower() == 'specializationloss':
+            return SpecializationLoss()
+        elif v['name'].lower() == 'consistencyloss':
+            return ConsistencyLoss()
         else:
             raise NotImplementedError(f"Loss {k} not implemented")
 
