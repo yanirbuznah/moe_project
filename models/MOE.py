@@ -25,8 +25,11 @@ class MixtureOfExperts(nn.Module):
         self.unsupervised_router = not model_config['router'][0]['supervised']
         self.router_config = model_config['router'][0]
         self.router = utils.get_router(self)
-
-        self.softmax = nn.Softmax(dim=-1)
+        if model_config.get('softmax', False) and not isinstance(list(self.experts[0].modules())[-1], nn.Softmax):
+            self.softmax = nn.Softmax(dim=-1)
+        else:
+            self.softmax = nn.Identity()
+        self.router_softmax = nn.Identity() if isinstance(list(self.router.modules())[-1], nn.Softmax) else nn.Softmax(dim=-1)
         self.encoder = utils.get_model(model_config['encoder'],
                                        output_shape=self.input_shape_router) if model_config.get('encoder',
                                                                                                  False) else nn.Identity()
@@ -64,8 +67,9 @@ class MixtureOfExperts(nn.Module):
 
         if not self.unsupervised_router and self.alternate and self.training:
             self._alternate_modules(router_phase)
-
-        return self.router(x_enc)
+        routes = self.router(x_enc)
+        routes_prob = self.router_softmax(routes)
+        return routes_prob
 
     def forward_unsupervised(self, x, *, routes=None):
         x = self.encoder(x)
@@ -76,22 +80,21 @@ class MixtureOfExperts(nn.Module):
 
         counts = x.new_tensor([len(indexes_list[i]) for i in range(self.num_experts)])
 
-        output = self.get_experts_output_from_indexes_list(indexes_list, x)
+        logits = self.get_experts_logits_from_indexes_list(indexes_list, x)
 
-        return {'output': output, 'routes': routes, 'counts': counts}
+        return {'output': self.softmax(logits), 'logits': logits, 'routes': routes, 'counts': counts}
 
     def get_unsupervised_output(self, x, *, routes=None):
         self.routes = self.unsupervised_router_step(x) if routes is None else routes
 
         indexes_list = self.get_indexes_list(self.routes)
 
-        return self.get_experts_output_from_indexes_list(indexes_list, x)
+        return self.get_experts_logits_from_indexes_list(indexes_list, x)
 
     def forward_supervised(self, x, *, router_phase=False):
         # get the routing probabilities
         router_probs = self.supervised_router_step(x, router_phase)
 
-        # router_probs = self.softmax(router_output)
         router_probs_max, routes = torch.max(router_probs, dim=-1)
 
         # get the indexes of the samples for each expert
@@ -101,12 +104,12 @@ class MixtureOfExperts(nn.Module):
         counts = x.new_tensor([len(indexes_list[i]) for i in range(self.num_experts)])
 
         # get the output of the experts
-        output = self.get_experts_output_from_indexes_list(indexes_list, x)
-        output = output * (router_probs_max / router_probs_max.detach()).view(-1, 1)
+        logits = self.get_experts_logits_from_indexes_list(indexes_list, x)
+        logits = logits * (router_probs_max / router_probs_max.detach()).view(-1, 1)
 
-        return {'output': output, 'router_probs': router_probs, 'counts': counts}
+        return {'output': self.softmax(logits), 'logits': logits, 'router_probs': router_probs, 'counts': counts}
 
-    def forward(self, x, *, router_phase=False):
+    def forward(self, x, *, router_phase=True):
         if self.unsupervised_router:
             return self.forward_unsupervised(x)
         else:
@@ -117,21 +120,21 @@ class MixtureOfExperts(nn.Module):
             return self.unsupervised_router.q_net.encoder(x)
         return self.encoder(x)
 
-    def get_experts_output_from_indexes_list(self, indexes_list, x):
-        experts_output = []
+    def get_experts_logits_from_indexes_list(self, indexes_list, x):
+        experts_logits = []
         for i in range(self.num_experts):
             if len(indexes_list[i]) > 0:
-                experts_output.append(self.experts[i](x[indexes_list[i], :]))
+                experts_logits.append(self.experts[i](x[indexes_list[i], :]))
             else:
-                experts_output.append(x.new_zeros((0, self.output_shape)))
+                experts_logits.append(x.new_zeros((0, self.output_shape)))
 
         indexes_list = torch.cat(indexes_list, dim=0).to(x.device)
-        experts_output = torch.cat(experts_output, dim=0).to(x.device)
+        experts_logits = torch.cat(experts_logits, dim=0).to(x.device)
 
-        output = x.new_zeros(experts_output.shape)
-        output.index_copy_(0, indexes_list, experts_output)
+        logits = x.new_zeros(experts_logits.shape)
+        logits.index_copy_(0, indexes_list, experts_logits)
 
-        return output
+        return logits
 
     def get_indexes_list(self, routes):
         return [torch.eq(routes, i).nonzero(as_tuple=True)[0] for i in range(self.num_experts)]
@@ -164,7 +167,7 @@ class MixtureOfExperts(nn.Module):
                     nn.init.zeros_(layer.bias)
 
     def train_router(self, epoch):
-        if epoch % self.alternate == 0 and epoch > self.alternate:
+        if True or epoch % self.alternate == 0 and epoch > self.alternate:
             try:
                 self.router.learn()
             except Exception as e:
