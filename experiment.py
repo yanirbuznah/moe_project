@@ -37,7 +37,7 @@ class Experiment:
         self.model = Model(config, self.train_set).to(utils.device)
         self.model.reset_parameters(dummy_sample.view(1, *dummy_sample.shape).to(utils.device))
         self._init_experiment_folder()
-
+        self.scheduler = torch.optim.lr_scheduler.StepLR(self.model.optimizer, step_size=10, gamma=0.1)
         self.initialized = True
 
     def __repr__(self):
@@ -57,7 +57,7 @@ class Experiment:
         return evaluate_result
 
     def run_rl_combined_model(self, epoch):
-        utils.run_train_epoch(self.model, self.train_loader)
+        utils.run_train_epoch(self.model, self.train_loader, self.scheduler)
         if wandb.run:
             wandb.watch(self.model.model)
         self.model.model.train_router(epoch)
@@ -70,8 +70,10 @@ class Experiment:
             validate_evaluate_results = {f'validate_{k}': v for k, v in validate_evaluate_results.items()}
             wandb.log({**train_evaluate_results, **validate_evaluate_results})
     def run_normal_model(self, epoch):
-        utils.run_train_epoch(self.model, self.train_loader)
-
+        if self.model.alternate:
+            router_phase = epoch % self.model.alternate == 0 and epoch != 0
+            # self.model.alternate_training_modules(router_phase)
+        utils.run_train_epoch(self.model, self.train_loader, self.scheduler)
         train_evaluate_results = self.evaluate_and_save_results(epoch, mode='train', model=self.model)
         validate_evaluate_results = self.evaluate_and_save_results(epoch, mode='test', model=self.model)
         logger.info(f"Train: {train_evaluate_results}")
