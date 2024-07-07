@@ -1,0 +1,4 @@
+RankCorrelationLoss:
+  name: RankCorrelationLoss
+  params:
+    k: 2

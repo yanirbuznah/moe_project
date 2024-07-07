@@ -35,3 +35,14 @@ class LossWrapper(Loss):
 
     def __str__(self):
         return self.__repr__()
+
+    @property
+    def model(self):
+        return self._model
+
+    @model.setter
+    def model(self, value):
+        self._model = value
+        for loss in self.losses:
+            loss.model = value
+

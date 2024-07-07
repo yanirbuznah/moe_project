@@ -1,0 +1,4 @@
+RegretBaseLoss:
+  name: RegretBaseLoss
+  params:
+    k: 2

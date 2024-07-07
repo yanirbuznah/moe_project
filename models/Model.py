@@ -12,6 +12,7 @@ class Model(nn.Module):
         self.model = get_model(model_config, train_set=train_set)
         self.optimizer = get_optimizer(self.model, model_config.get('optimizer'), model_config.get('lr'))
         self.criterion = get_loss(model_config.get('loss'))
+        self.criterion.model = self.model
         self.metrics = get_metrics(config.get('metrics'), train_set.get_number_of_classes())
         self.train_set = train_set
 
@@ -44,11 +45,12 @@ class Model(nn.Module):
     def loss(self, batch):
         x, y, _ = batch
         x, y = x.to(self.device), y.to(self.device)
-        output = self.forward(x)
-        if isinstance(output, torch.Tensor):
-            output = {'y_pred': output}
-        output['target'] = y
-        return self.criterion(**output)
+        model_output = self.forward(x)
+        if isinstance(model_output, torch.Tensor):
+            model_output = {'y_pred': model_output}
+        model_output['target'] = y
+        model_output['input'] = x
+        return self.criterion(**model_output)
 
     def evaluate(self, batch):
         x, y, y_super = batch

@@ -6,6 +6,7 @@ from losses import Loss
 
 class SpecializationLoss(Loss):
     temperature = 0.0001
+
     def __init__(self):
         super().__init__()
 
@@ -15,18 +16,21 @@ class SpecializationLoss(Loss):
             route_probabilities in kwargs.keys())
         labels = next(kwargs[labels] for labels in self.possible_y_true if labels in kwargs.keys())
         logits = kwargs['logits']
-        preds = torch.nn.functional.softmax(logits / self.temperature)
+        preds = torch.nn.functional.softmax(logits / self.temperature, dim=-1)
         self._calc(route_probabilities, labels, preds)
         return self.stat
 
     def _calc(self, route_probabilities, labels, preds):
         one_hot_labels = torch.nn.functional.one_hot(labels)
         one_hot_routes = torch.nn.functional.gumbel_softmax(route_probabilities / self.temperature, hard=True).T
-        total_assignment = one_hot_routes @ one_hot_labels.float()
-        accuarcy = one_hot_routes @ (one_hot_labels * preds)
-        total_assignments_probs = total_assignment / total_assignment.sum(axis=0, keepdims=True)
-        accuarcy /= torch.maximum(total_assignment, torch.ones_like(total_assignment))  # calculate the accuracy per expert per class
-        specialization = (accuarcy * total_assignments_probs).sum(axis=0).mean()
+        labels_per_experts_count = one_hot_routes @ one_hot_labels.float()
+        correct_per_expert_count = one_hot_routes @ (one_hot_labels * preds)
+        accuracy_per_expert_count = correct_per_expert_count / torch.maximum(labels_per_experts_count,
+                                                                             torch.ones_like(
+                                                                                 labels_per_experts_count))  # calculate the accuracy per expert per class
+        total_assignments_probs = labels_per_experts_count / labels_per_experts_count.sum(axis=0, keepdims=True)
+        specialization = (accuracy_per_expert_count * total_assignments_probs).sum(axis=0).mean()
+        self.stat = 1. - specialization
 
         # correct = preds.argmax(1) == labels
         # gates = route_probabilities.argmax(1)
@@ -38,4 +42,3 @@ class SpecializationLoss(Loss):
         # total_assignments_probs = total_assignments / total_assignments.sum(axis=0, keepdims=True)
         # accuracy /= np.maximum(total_assignments, 1)  # calculate the accuracy per expert per class
         # specialization = (accuracy * total_assignments_probs).sum(axis=0).mean()  # calculate the specialization
-        self.stat = 1. - specialization

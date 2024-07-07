@@ -5,5 +5,6 @@ from .L1Loss import L1Loss
 from .SwitchLoadBalancingLoss import SwitchLoadBalancingLoss
 from .SpecializationLoss import SpecializationLoss
 from .ConsistencyLoss import ConsistencyLoss
-from .SpearmanLoss import SpearmanLoss
+from .RankCorrelationLoss import RankCorrelationLoss
+from .RegretBaseLoss import RegretBaseLoss
 from .LossWrapper import LossWrapper

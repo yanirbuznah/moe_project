@@ -28,7 +28,7 @@ metrics:
     - SuperClassEntropy
     - Consistency
     - Specialization
-
+    - NewSpecialization
 seed: 0
 epochs: 100
 

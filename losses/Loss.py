@@ -2,6 +2,8 @@ class Loss:
     def __init__(self):
         self.stat = 0.0
         self.init_possible_input_options()
+        self._model = None
+
 
     def init_possible_input_options(self):
         self.possible_y_pred = ['y_pred', 'output', 'y_hat', 'out']
@@ -15,3 +17,12 @@ class Loss:
 
     def __repr__(self):
         return f'{self.__class__.__name__} with {self.stat:.2f}'
+
+    @property
+    def model(self):
+        return self._model
+
+    @model.setter
+    def model(self, value):
+        self._model = value
+
