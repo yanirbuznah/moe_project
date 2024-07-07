@@ -16,7 +16,7 @@ class Loss:
         raise NotImplementedError
 
     def __repr__(self):
-        return f'{self.__class__.__name__} with {self.stat:.2f}'
+        return f'{self.__class__.__name__}: {self.stat:.2f}'
 
     @property
     def model(self):
