@@ -1,10 +1,10 @@
 type: rl_moe
 
 router:
-  - type: rl
-    model_config: !include router_configs/ddqn_config.yml
-    epochs: [0, 100]
-    supervised: false
+  type: rl
+  model_config: !include router_configs/ddqn_config.yml
+  epochs: [0, 100]
+  supervised: false
 
 
 #encoder: !include expert_configs/resnet18_expert_config.yml

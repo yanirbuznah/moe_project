@@ -1,9 +1,8 @@
 log:
-  wandb_project_name: null #cifar10_debug_experiment
+  wandb_project_name: resnet_cifar10_debug_experiment
   experiment_name: dummy_experiment
   experiment_description: dummy_description
 
-# experiment: !include experiment_configs/experiment_config.yml
 
 dataloader: !include dataloader_configs/cifar10_dataloader_config.yml
 
@@ -32,4 +31,4 @@ metrics:
 seed: 0
 epochs: 100
 
-# Path: configs\experiment_configs\dummy_config.yml
+# Path: configs\experiment_configs\cifar10_config.yml

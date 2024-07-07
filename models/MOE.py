@@ -22,14 +22,15 @@ class MixtureOfExperts(nn.Module):
         self.experts = nn.ModuleList(
             [utils.get_model(model_config['expert'], train_set=train_set) for _ in range(self.num_experts)])
 
-        self.unsupervised_router = not model_config['router'][0]['supervised']
-        self.router_config = model_config['router'][0]
+        self.unsupervised_router = not model_config['router']['supervised']
+        self.router_config = model_config['router']
         self.router = utils.get_router(self)
         if model_config.get('softmax', False) and not isinstance(list(self.experts[0].modules())[-1], nn.Softmax):
             self.softmax = nn.Softmax(dim=-1)
         else:
             self.softmax = nn.Identity()
-        self.router_softmax = nn.Identity() if isinstance(list(self.router.modules())[-1], nn.Softmax) else nn.Softmax(dim=-1)
+        if not self.unsupervised_router:
+            self.router_softmax = nn.Identity() if isinstance(list(self.router.modules())[-1], nn.Softmax) else nn.Softmax(dim=-1)
         self.encoder = utils.get_model(model_config['encoder'],
                                        output_shape=self.input_shape_router) if model_config.get('encoder',
                                                                                                  False) else nn.Identity()
@@ -55,18 +56,16 @@ class MixtureOfExperts(nn.Module):
         if hasattr(self.router, 'reset_parameters'):
             self.router.reset_parameters(input)
 
-    def router_phase(self, router_phase):
+    def alternate_training_modules(self, router_phase):
         self._alternate_modules(router_phase)
 
     def unsupervised_router_step(self, x):
         return self.router.act(x, training=self.training)  # .cpu())
 
-    def supervised_router_step(self, x, router_phase):
-        # encode the input to linear space
+    def supervised_router_step(self, x):
+        # encode the input to linear space if needed
         x_enc = self.encoder(x)
 
-        if not self.unsupervised_router and self.alternate and self.training:
-            self._alternate_modules(router_phase)
         routes = self.router(x_enc)
         routes_prob = self.router_softmax(routes)
         return routes_prob
@@ -91,9 +90,9 @@ class MixtureOfExperts(nn.Module):
 
         return self.get_experts_logits_from_indexes_list(indexes_list, x)
 
-    def forward_supervised(self, x, *, router_phase=False):
+    def forward_supervised(self, x):
         # get the routing probabilities
-        router_probs = self.supervised_router_step(x, router_phase)
+        router_probs = self.supervised_router_step(x)
 
         router_probs_max, routes = torch.max(router_probs, dim=-1)
 
@@ -109,11 +108,11 @@ class MixtureOfExperts(nn.Module):
 
         return {'output': self.softmax(logits), 'logits': logits, 'router_probs': router_probs, 'counts': counts}
 
-    def forward(self, x, *, router_phase=True):
+    def forward(self, x):
         if self.unsupervised_router:
             return self.forward_unsupervised(x)
         else:
-            return self.forward_supervised(x, router_phase=router_phase)
+            return self.forward_supervised(x)
 
     def encode(self, x):
         if self.unsupervised_router:

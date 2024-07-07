@@ -37,8 +37,6 @@ def main():
                 if isinstance(v, dict):
                     # next_key = list(key[k].keys())[0]
                     set_value_by_key_from_nested_dict(v, key[key_name], value)
-                elif isinstance(v, list):
-                    set_value_by_key_from_nested_dict(v[0], key[key_name][0], value)
                 else:
                     nested_dict[k] = value
 
@@ -57,7 +55,7 @@ def main():
             # Initialize wandb if project name is provided
             if wandb_project_name is not None:
                 wandb.init(project=wandb_project_name, config=config)
-            #
+
             # Run the experiment with the current configuration
             run_experiment(config)
 

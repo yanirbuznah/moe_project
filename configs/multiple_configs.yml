@@ -1,24 +1,27 @@
-base_config: ddqn_cifar10_config.yml
+base_config: cifar10_config.yml
 
 changes:
   - key:
       model:
-        model:
-          router:
-          - model_config:
-              reward_function
+        loss:
+          MixtureOfExpertLoss:
+            losses
     options:
-      - SpearmanCorrelation
-      - Expertise
-      - Proposal
-      - SpecializationAndConsistency
+      - - !include loss_configs/cross_entropy_loss_config.yml
+        - !include loss_configs/regret_base_loss_config.yml
+      - - !include loss_configs/cross_entropy_loss_config.yml
+        - !include loss_configs/rank_correlation_loss_config.yml
+      - - !include loss_configs/cross_entropy_loss_config.yml
+        - !include loss_configs/switch_load_balancing_loss_config.yml
+      - - !include loss_configs/cross_entropy_loss_config.yml
+        - !include loss_configs/consistency_loss_config.yml
+        - !include loss_configs/specialization_loss_config.yml
+
+
   - key:
       model:
-        model:
-          router:
-            - model_config:
-                action_assignment_strategy
+        loss:
+          MixtureOfExpertLoss:
+            weights
     options:
-#      - LinearAssignmentByDiff
-      - LinearAssignmentWithCapacity
-      - none
+      - [1., 0.1, 0.1]

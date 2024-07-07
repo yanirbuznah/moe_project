@@ -15,6 +15,7 @@ class Model(nn.Module):
         self.criterion.model = self.model
         self.metrics = get_metrics(config.get('metrics'), train_set.get_number_of_classes())
         self.train_set = train_set
+        self.alternate = self.model.alternate if hasattr(self.model, 'alternate') else False
 
     def to(self, device):
         self.model.to(device)
@@ -78,3 +79,6 @@ class Model(nn.Module):
 
     def get_loss_repr(self):
         return self.criterion.__repr__()
+
+    def alternate_training_modules(self, router_phase):
+        self.model.alternate_training_modules(router_phase)

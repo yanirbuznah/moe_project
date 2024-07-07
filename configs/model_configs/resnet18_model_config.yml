@@ -1,10 +1,10 @@
 type: moe
 
 router:
-  - type: resnet
-    model_config: !include router_configs/resnet_18_router_config.yml
-    epochs: [0, 100]
-    supervised: true
+  type: resnet
+  model_config: !include router_configs/resnet_18_router_config.yml
+  epochs: [0, 100]
+  supervised: true
 
 
 #encoder: !include expert_configs/resnet18_expert_config.yml

@@ -1,0 +1,24 @@
+base_config: ddqn_cifar10_config.yml
+
+changes:
+  - key:
+      model:
+        model:
+          router:
+            model_config:
+              reward_function
+    options:
+      - SpearmanCorrelation
+      - Expertise
+      - Proposal
+      - SpecializationAndConsistency
+  - key:
+      model:
+        model:
+          router:
+            model_config:
+                action_assignment_strategy
+    options:
+#      - LinearAssignmentByDiff
+      - LinearAssignmentWithCapacity
+      - none
