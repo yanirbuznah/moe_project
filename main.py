@@ -15,8 +15,8 @@ def run_experiment(config):
     logger = Logger().logger(__name__)
     logger.info('Starting experiment')
     logger.info(pformat(config))
-    experiment = Experiment(config)
     try:
+        experiment = Experiment(config)
         experiment.run()
     except Exception as e:
         logger.fatal(f'Exception occurred during experiment:\n {traceback.format_exc()}')
