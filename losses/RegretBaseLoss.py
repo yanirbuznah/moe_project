@@ -32,8 +32,8 @@ class RegretBaseLoss(Loss):
         ce_losses = torch.stack(ce_losses, dim=1)
 
         current_loss = ce_losses[:, 0]
-        current_score = current_loss * route_probabilities.max(dim=1).values
-
+        # current_score = current_loss * route_probabilities.max(dim=1).values
+        current_score = current_loss / route_probabilities.max(dim=1).values
         best_loss, _ = ce_losses.min(dim=1)
 
         regret = current_score - best_loss
