@@ -36,7 +36,7 @@ class RegretBaseLoss(Loss):
 
         best_loss, _ = ce_losses.min(dim=1)
 
-        regret = best_loss - current_score
+        regret = current_score - best_loss
         self.stat = regret.mean()
 
     # check if everything is differentiable with respect to the router probabilities
