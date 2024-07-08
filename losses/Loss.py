@@ -4,7 +4,6 @@ class Loss:
         self.init_possible_input_options()
         self._model = None
 
-
     def init_possible_input_options(self):
         self.possible_y_pred = ['y_pred', 'output', 'y_hat', 'out']
         self.logits = ['logits']
@@ -19,10 +18,13 @@ class Loss:
         return f'{self.__class__.__name__}: {self.stat:.2f}'
 
     @property
+    def name(self):
+        return self.__class__.__name__
+
+    @property
     def model(self):
         return self._model
 
     @model.setter
     def model(self, value):
         self._model = value
-

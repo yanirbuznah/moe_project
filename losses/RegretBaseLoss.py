@@ -37,6 +37,9 @@ class RegretBaseLoss(Loss):
         best_loss, _ = ce_losses.min(dim=1)
 
         regret = current_score - best_loss
+
+        assert all(regret >= 0), f"Regret must be non-negative, but got {regret}"
+
         self.stat = regret.mean()
 
     # check if everything is differentiable with respect to the router probabilities

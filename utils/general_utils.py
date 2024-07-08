@@ -63,13 +63,19 @@ def evaluate(model: Model, data_loader) -> dict:
     model.eval()
     total_loss = 0
     with torch.no_grad():
+        losses = {l.name: 0 for l in model.losses}
         for batch in tqdm(data_loader, desc="Evaluating"):
             loss = model.evaluate(batch)
             total_loss += loss.item()
-
+            for l in model.losses:
+                losses[l.name] += loss[l.name].item()
     total_loss /= len(data_loader)
+    for l in model.losses:
+        losses[l.name] /= len(data_loader)
     model_evaluation = model.compute_metrics()
-    model_evaluation['loss'] = total_loss
+    model_evaluation['total_loss'] = total_loss
+    for l in model.losses:
+        model_evaluation[f'{l.name}'] = losses[l.name]
     logger.debug(model_evaluation)
     return model_evaluation
 
