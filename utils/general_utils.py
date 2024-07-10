@@ -69,7 +69,7 @@ def evaluate(model: Model, data_loader) -> dict:
             total_loss += loss.item()
             for l in model.get_losses_details():
                 losses[l.name] += l.stat.item()
-            break
+
     total_loss /= len(data_loader)
     model_evaluation = model.compute_metrics()
     model_evaluation['total_loss'] = total_loss
