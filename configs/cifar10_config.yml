@@ -1,5 +1,5 @@
 log:
-  wandb_project_name: resnet_cifar10_debug_experiment
+  wandb_project_name: resnet_cifar10_experiment
   experiment_name: dummy_experiment
   experiment_description: dummy_description
 
