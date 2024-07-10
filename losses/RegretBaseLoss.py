@@ -21,7 +21,7 @@ class RegretBaseLoss(Loss):
 
     def _calc(self, route_probabilities, labels, x, logits):
         # get the top k routes
-        _, topk = torch.topk(route_probabilities, self.k, dim=1)
+        top_k_probs, topk = torch.topk(route_probabilities, self.k, dim=1)
 
         # get the cross entropy loss for the top k routes
         ce_losses = [torch.nn.functional.cross_entropy(logits, labels, reduction='none')]
@@ -32,8 +32,11 @@ class RegretBaseLoss(Loss):
         ce_losses = torch.stack(ce_losses, dim=1)
 
         current_loss = ce_losses[:, 0]
-        # current_score = current_loss * route_probabilities.max(dim=1).values
-        current_score = current_loss / route_probabilities.max(dim=1).values
+
+        # current_score =  E[P*Loss] = \sum_i P_i * Loss_i
+        top_k_probs = top_k_probs / top_k_probs.sum(dim=1, keepdim=True)
+        current_score = (top_k_probs * ce_losses).sum(dim=1)
+
         best_loss, _ = ce_losses.min(dim=1)
 
         regret = current_score - best_loss
