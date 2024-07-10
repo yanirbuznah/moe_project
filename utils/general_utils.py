@@ -48,10 +48,10 @@ def run_train_epoch(model: Model, data_loader, scheduler=None) -> float:
         model.optimizer.zero_grad()
         loss.backward()
         model.optimizer.step()
-        if scheduler is not None:
-            scheduler.step()
         total_loss += loss.item()
         pbar.set_postfix({'loss': model.get_loss_repr()})
+    if scheduler is not None:
+        scheduler.step()
 
     total_loss /= len(data_loader)
     logger.debug(f"Train loss: {total_loss}")
@@ -69,6 +69,7 @@ def evaluate(model: Model, data_loader) -> dict:
             total_loss += loss.item()
             for l in model.get_losses_details():
                 losses[l.name] += l.stat.item()
+            break
     total_loss /= len(data_loader)
     model_evaluation = model.compute_metrics()
     model_evaluation['total_loss'] = total_loss
