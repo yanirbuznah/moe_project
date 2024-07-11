@@ -112,19 +112,62 @@ class LinearAssignmentByDiff(LinearAssignmentWithCapacity):
         return initial_assignment
 
         # for i, (expert, route) in enumerate(zip(assignment, min_routes)):
+        #
+        # while len(unassigned) > 0:
+        #     routes_min, experts = torch.min(diff_matrix, dim=-1)
+        #     route_max = routes[torch.arange(routes.size(0)), experts]
+        #     diff_matrix = diff_matrix + route_max.view(-1, 1)
+        #     for i, (expert, route) in enumerate(zip(experts, routes_min)):
+        #         if i in unassigned:
+        #             experts_assignments[expert].append([i, route.item()])
+        #     experts_assignments = [sorted(expert, key=lambda x: x[1], reverse=True) for expert in experts_assignments]
+        #     unassigned = [expert[max_capacity:] for expert in experts_assignments]
+        #     unassigned = [i[0] for expert in unassigned for i in expert]
+        #     routes[unassigned, experts[unassigned]] = -np.inf
+        #     unassigned = set(unassigned)
+        #     experts_assignments = [expert[:max_capacity] for expert in experts_assignments]
+        # experts_assignments = [[i[0] for i in expert] for expert in experts_assignments]
+        # return experts_assignments
 
-        while len(unassigned) > 0:
-            routes_min, experts = torch.min(diff_matrix, dim=-1)
-            route_max = routes[torch.arange(routes.size(0)), experts]
-            diff_matrix = diff_matrix + route_max.view(-1, 1)
-            for i, (expert, route) in enumerate(zip(experts, routes_min)):
-                if i in unassigned:
-                    experts_assignments[expert].append([i, route.item()])
-            experts_assignments = [sorted(expert, key=lambda x: x[1], reverse=True) for expert in experts_assignments]
-            unassigned = [expert[max_capacity:] for expert in experts_assignments]
-            unassigned = [i[0] for expert in unassigned for i in expert]
-            routes[unassigned, experts[unassigned]] = -np.inf
-            unassigned = set(unassigned)
-            experts_assignments = [expert[:max_capacity] for expert in experts_assignments]
-        experts_assignments = [[i[0] for i in expert] for expert in experts_assignments]
-        return experts_assignments
+
+def balanced_assignment(scores, max_iterations=100):
+    eps = 1e-6
+    num_workers, num_jobs = scores.size()
+    jobs_per_worker = num_jobs // num_workers
+    value = scores.clone()
+
+    iterations = 0
+    cost = scores.new_zeros(1, num_jobs)
+
+    jobs_with_bids = torch.zeros(num_workers).bool()
+
+    while not jobs_with_bids.all():
+        top_values, top_index = torch.topk(value, k=jobs_per_worker + 1, dim=1)
+
+        # Each worker bids the difference in value between a job and the k+1th job
+        bid_increments = top_values[:, :-1] - top_values[:, -1:] + eps
+        bids = torch.scatter(torch.zeros(num_workers, num_jobs), dim=1,
+                       index=top_index[:, :-1], src=bid_increments)
+
+        if 0 < iterations < max_iterations:
+            # If a worker won a job on the previous round, put in a minimal bid to retain
+            # the job only if no other workers bid this round.
+            bids[top_bidders, jobs_with_bids] = eps
+
+        # Find the highest bidding worker per job
+        top_bids, top_bidders = bids.max(dim=0)
+        jobs_with_bids = top_bids > 0
+        top_bidders = top_bidders[jobs_with_bids]
+
+        # Make popular items more expensive
+        cost += top_bids
+        value = scores - cost
+
+        if iterations < max_iterations:
+            # If a worker won a job, make sure it appears in its top-k on the next round
+            value[top_bidders, jobs_with_bids] = float('inf')
+        else:
+            value[top_bidders, jobs_with_bids] = scores[top_bidders, jobs_with_bids]
+        iterations += 1
+
+    return top_index[:, :-1].reshape(-1)
