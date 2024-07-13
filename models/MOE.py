@@ -4,6 +4,7 @@ import traceback
 import torch
 from torch import nn
 
+from utils.assignment_utils import balanced_assignment
 from . import utils
 
 
@@ -95,6 +96,8 @@ class MixtureOfExperts(nn.Module):
         router_probs = self.supervised_router_step(x)
 
         router_probs_max, routes = torch.max(router_probs, dim=-1)
+
+        routes = balanced_assignment(scores=router_probs.T)
 
         # get the indexes of the samples for each expert
         indexes_list = self.get_indexes_list(routes)

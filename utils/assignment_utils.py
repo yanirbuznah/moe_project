@@ -131,13 +131,14 @@ class LinearAssignmentByDiff(LinearAssignmentWithCapacity):
 
 
 def balanced_assignment(scores, max_iterations=100):
+    # score is a matrix of shape (num_workers, num_jobs)
     eps = 1e-6
     num_workers, num_jobs = scores.size()
-    jobs_per_worker = num_jobs // num_workers
+    jobs_per_worker = 1 + int(1.2*num_jobs) // num_workers
     value = scores.clone()
 
     iterations = 0
-    cost = scores.new_zeros(1, num_jobs)
+    cost = scores.new_zeros(1, num_jobs).float()
 
     jobs_with_bids = torch.zeros(num_workers).bool()
 
@@ -146,8 +147,7 @@ def balanced_assignment(scores, max_iterations=100):
 
         # Each worker bids the difference in value between a job and the k+1th job
         bid_increments = top_values[:, :-1] - top_values[:, -1:] + eps
-        bids = torch.scatter(torch.zeros(num_workers, num_jobs), dim=1,
-                       index=top_index[:, :-1], src=bid_increments)
+        bids = torch.scatter(torch.zeros_like(scores), dim=1, index=top_index[:, :-1], src=bid_increments)
 
         if 0 < iterations < max_iterations:
             # If a worker won a job on the previous round, put in a minimal bid to retain
@@ -170,4 +170,12 @@ def balanced_assignment(scores, max_iterations=100):
             value[top_bidders, jobs_with_bids] = scores[top_bidders, jobs_with_bids]
         iterations += 1
 
-    return top_index[:, :-1].reshape(-1)
+    return top_bidders
+
+
+
+if __name__ == '__main__':
+    scores = torch.FloatTensor([[1, 2, 3, 4], [4, 3, 2, 1], [2, 1, 4, 3]])
+    print(balanced_assignment(scores))
+    print(LinearAssignment()(scores))
+    print(LinearAssignmentWithCapacity)
