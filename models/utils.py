@@ -91,26 +91,26 @@ def get_loss(loss: dict):
     for k, v in loss.items():
         if v is None:
             raise ValueError(f"Loss {k} is required")
-        if v['name'] == 'LossCombination':
+        if v['type'] == 'LossCombination':
             operator = v['operator']
             losses_list = [get_loss(l) for l in v['losses']]
             weights_dict = v.get('weights', None)
             return LossWrapper(operator, losses_list, weights_dict)
-        elif v['name'].lower() == 'crossentropyloss':
+        elif v['type'].lower() == 'crossentropyloss':
             return CrossEntropyLoss(**v['params'])
-        elif v['name'].lower() == 'mseloss':
+        elif v['type'].lower() == 'mseloss':
             return MSELoss(**v['params'])
-        elif v['name'].lower() == 'l1loss':
+        elif v['type'].lower() == 'l1loss':
             return L1Loss(**v['params'])
-        elif v['name'].lower() == 'switchloadbalancingloss':
+        elif v['type'].lower() == 'switchloadbalancingloss':
             return SwitchLoadBalancingLoss()
-        elif v['name'].lower() == 'specializationloss':
-            return SpecializationLoss()
-        elif v['name'].lower() == 'consistencyloss':
+        elif v['type'].lower() == 'specializationloss':
+            return SpecializationLoss(**v['params'])
+        elif v['type'].lower() == 'consistencyloss':
             return ConsistencyLoss()
-        elif v['name'].lower() == 'rankcorrelationloss':
+        elif v['type'].lower() == 'rankcorrelationloss':
             return RankCorrelationLoss(**v['params'])
-        elif v['name'].lower() == 'regretbaseloss':
+        elif v['type'].lower() == 'regretbaseloss':
             return RegretBaseLoss(**v['params'])
         else:
             raise NotImplementedError(f"Loss {k} not implemented")

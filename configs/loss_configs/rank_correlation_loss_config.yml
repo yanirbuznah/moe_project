@@ -1,4 +1,6 @@
 RankCorrelationLoss:
   name: RankCorrelationLoss
+  type: RankCorrelationLoss
   params:
     k: 2
+    detach_experts_grad: true

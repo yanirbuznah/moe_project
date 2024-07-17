@@ -1,2 +1,5 @@
 SpecializationLoss:
   name: SpecializationLoss
+  type: SpecializationLoss
+  params:
+    detach_experts_grad: true

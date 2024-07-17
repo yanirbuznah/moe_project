@@ -8,6 +8,7 @@ class RankCorrelationLoss(Loss):
     def __init__(self, *args, **kwargs):
         super().__init__()
         self.k = kwargs.get('k', 2)
+        self.detach = kwargs.get('detach_experts_grad', False)
 
     def __call__(self, *args, **kwargs):
         route_probabilities = next(
@@ -29,10 +30,12 @@ class RankCorrelationLoss(Loss):
             ce_loss = torch.nn.functional.cross_entropy(logits_i, labels, reduction='none')
             ce_losses.append(ce_loss)
         ce_losses = torch.stack(ce_losses, dim=1)
-
+        if self.detach:
+            ce_losses = ce_losses.detach()
         ce_losses_normalized = ce_losses - torch.mean(ce_losses, dim=1, keepdim=True)
 
-        route_probabilities_normalized = route_probabilities_sorted - torch.mean(route_probabilities_sorted, dim=1, keepdim=True)
+        route_probabilities_normalized = route_probabilities_sorted - torch.mean(route_probabilities_sorted, dim=1,
+                                                                                 keepdim=True)
 
         # find the covariance between route_probabilities and ce_losses
         cov = torch.sum(route_probabilities_normalized * ce_losses_normalized, dim=1)
@@ -41,7 +44,7 @@ class RankCorrelationLoss(Loss):
         # find the standard deviation of the ce_losses
         ce_std = torch.sqrt(torch.sum(ce_losses_normalized ** 2, dim=1))
         # find the pearson correlation
-        correlation = cov / (route_std * ce_std)
+        correlation = cov / ((route_std * ce_std) + 1e-6)
         self.stat = 1 + correlation.mean()
 
         # # sort the losses from the lowest to the highest, and get the indices

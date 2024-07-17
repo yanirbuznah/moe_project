@@ -8,7 +8,7 @@ class Metric:
         self.possible_y_true = ['target', 'y_true']
         self.possible_x = ['x', 'input', 'inp', 'X', 'Input', 'Inp']
         self.possible_model = ['model', 'm', 'Model', 'M']
-        self.possible_routes_probs = ['router_probs', 'rp']
+        self.possible_routes_probs = ['router_probs', 'rp', 'route_probs']
         self.possible_counts = ['count', 'cnt', 'c', 'Count', 'Cnt', 'C', 'Counts', 'Cnts', 'counts']
         self.possible_routes = ['routes', 'route', 'r', 'Routes', 'Route', 'R']
         self.possible_super_classes = ['super_targets', 'super_classes', 'sc', 'Super_classes', 'SC', 'Super_Classes', 'super_Classes']

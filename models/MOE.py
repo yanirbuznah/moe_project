@@ -68,8 +68,8 @@ class MixtureOfExperts(nn.Module):
         x_enc = self.encoder(x)
 
         routes = self.router(x_enc)
-        routes_prob = self.router_softmax(routes)
-        return routes_prob
+        return routes
+
 
     def forward_unsupervised(self, x, *, routes=None):
         x = self.encoder(x)
@@ -93,11 +93,12 @@ class MixtureOfExperts(nn.Module):
 
     def forward_supervised(self, x):
         # get the routing probabilities
-        router_probs = self.supervised_router_step(x)
+        routes_logits = self.supervised_router_step(x)
+        routes_probs = self.router_softmax(routes_logits)
 
-        router_probs_max, routes = torch.max(router_probs, dim=-1)
+        router_probs_max, routes = torch.max(routes_probs, dim=-1)
 
-        routes = balanced_assignment(scores=router_probs.T)
+        routes = balanced_assignment(scores=routes_logits.T)
 
         # get the indexes of the samples for each expert
         indexes_list = self.get_indexes_list(routes)
@@ -107,9 +108,10 @@ class MixtureOfExperts(nn.Module):
 
         # get the output of the experts
         logits = self.get_experts_logits_from_indexes_list(indexes_list, x)
-        logits = logits * (router_probs_max / router_probs_max.detach()).view(-1, 1)
+        # logits = logits * (router_probs_max / router_probs_max.detach()).view(-1, 1)
 
-        return {'output': self.softmax(logits), 'logits': logits, 'router_probs': router_probs, 'counts': counts}
+        return {'output': self.softmax(logits), 'logits': logits, 'router_probs': routes_probs, 'counts': counts,
+                'routes':routes}
 
     def forward(self, x):
         if self.unsupervised_router:

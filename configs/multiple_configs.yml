@@ -8,6 +8,8 @@ changes:
             losses
     options:
       - - !include loss_configs/cross_entropy_loss_config.yml
+        - !include loss_configs/expertise_loss_config.yml
+      - - !include loss_configs/cross_entropy_loss_config.yml
         - !include loss_configs/regret_base_loss_config.yml
       - - !include loss_configs/cross_entropy_loss_config.yml
         - !include loss_configs/rank_correlation_loss_config.yml
@@ -24,4 +26,11 @@ changes:
           MixtureOfExpertLoss:
             weights
     options:
-      - [1., 0.5, 0.1]
+      - [1., 0.1, 0.1]
+      - [1. , 0.5, 0.1]
+
+  - key:
+        scheduler
+    options:
+      - false
+      - true

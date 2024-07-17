@@ -1,2 +1,5 @@
 SwitchLoadBalancingLoss:
   name: SwitchLoadBalancingLoss
+  type: SwitchLoadBalancingLoss
+  params:
+    detach_experts_grad: true

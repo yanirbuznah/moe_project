@@ -1,4 +1,5 @@
 CrossEntropyLoss:
+  type: CrossEntropyLoss
   name: CrossEntropyLoss
   params:
     reduction: mean

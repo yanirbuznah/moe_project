@@ -170,6 +170,9 @@ def balanced_assignment(scores, max_iterations=100):
             value[top_bidders, jobs_with_bids] = scores[top_bidders, jobs_with_bids]
         iterations += 1
 
+        if iterations >= max_iterations:
+            break
+
     return top_bidders
 
 

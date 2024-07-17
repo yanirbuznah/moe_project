@@ -1,5 +1,6 @@
 MSELoss:
     name: MSELoss
+    type: MSELoss
     params:
       size_average: null
       reduce: null

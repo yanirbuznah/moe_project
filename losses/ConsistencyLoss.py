@@ -14,14 +14,17 @@ class ConsistencyLoss(Loss):
             kwargs[route_probabilities] for route_probabilities in self.possible_route_probabilities if
             route_probabilities in kwargs.keys())
         labels = next(kwargs[labels] for labels in self.possible_y_true if labels in kwargs.keys())
+
+        routes = kwargs['routes']
         # labels = torch.nn.functional.one_hot(labels)
-        self._calc(route_probabilities, labels)
+        self._calc(route_probabilities, labels, routes)
         return self.stat
 
-    def _calc(self, route_probabilities: torch.Tensor, labels: torch.Tensor):
+    def _calc(self, route_probabilities: torch.Tensor, labels: torch.Tensor, routes: torch.Tensor):
         one_hot_labels = torch.nn.functional.one_hot(labels)
-        one_hot_routes = torch.nn.functional.gumbel_softmax(route_probabilities / self.temperature, hard=True).T
-        labels_per_experts_count = one_hot_routes @ one_hot_labels.float()
+        one_hot_routes = route_probabilities * torch.nn.functional.one_hot(routes) / (route_probabilities.detach() + 1e-6)
+        # one_hot_routes = torch.nn.functional.gumbel_softmax(route_probabilities / self.temperature, hard=True).T
+        labels_per_experts_count = one_hot_routes.T @ one_hot_labels.float()
         labels_per_experts_probs = (
                     labels_per_experts_count / torch.clamp(labels_per_experts_count.sum(dim=0, keepdim=True), min=1)).T
         Hx = -torch.sum(labels_per_experts_probs * torch.log2(labels_per_experts_probs + 1e-10), dim=1).mean()

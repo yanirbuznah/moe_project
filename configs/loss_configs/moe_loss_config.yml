@@ -1,5 +1,6 @@
 MixtureOfExpertLoss:
-    name: LossCombination
+    name: MixtureOfExpert
+    type: LossCombination
     operator: +
     losses:
         - !include loss_configs/cross_entropy_loss_config.yml
@@ -9,4 +10,3 @@ MixtureOfExpertLoss:
 #        - !include loss_configs/consistency_loss_config.yml
 #        - !include loss_configs/specialization_loss_config.yml
     weights: [1., 0.1]
-

@@ -1,2 +1,5 @@
 ConsistencyLoss:
+  type: ConsistencyLoss
   name: ConsistencyLoss
+  params:
+    detach_experts_grad: true

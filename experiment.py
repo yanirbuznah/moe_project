@@ -11,6 +11,7 @@ from metrics import ConfusionMatrix
 from models.MOE import MixtureOfExperts
 from models.Model import Model
 from utils.singleton_meta import SingletonMeta
+from utils.early_stopping import EarlyStopping
 import wandb
 
 logger = Logger().logger(__name__)
@@ -37,7 +38,8 @@ class Experiment:
         self.model = Model(config, self.train_set).to(utils.device)
         self.model.reset_parameters(dummy_sample.view(1, *dummy_sample.shape).to(utils.device))
         self._init_experiment_folder()
-        self.scheduler = torch.optim.lr_scheduler.StepLR(self.model.optimizer, step_size=10, gamma=0.1)
+        self.scheduler = torch.optim.lr_scheduler.StepLR(self.model.optimizer, step_size=10, gamma=0.1) if config.get(
+            'scheduler', False) else None
         self.initialized = True
 
     def __repr__(self):
@@ -69,6 +71,8 @@ class Experiment:
             train_evaluate_results = {f'train_{k}': v for k, v in train_evaluate_results.items()}
             validate_evaluate_results = {f'validate_{k}': v for k, v in validate_evaluate_results.items()}
             wandb.log({**train_evaluate_results, **validate_evaluate_results})
+        return train_evaluate_results, validate_evaluate_results
+
     def run_normal_model(self, epoch):
         if self.model.alternate:
             router_phase = epoch % self.model.alternate == 0 and epoch != 0
@@ -81,16 +85,19 @@ class Experiment:
         if wandb.run:
             wandb.log({'train': train_evaluate_results, 'validate': validate_evaluate_results})
 
+        return train_evaluate_results, validate_evaluate_results
+
     def run(self):
         model = self.model.model
+        early_stopping = EarlyStopping(tolerance=5, min_delta=0.5)
         for epoch in range(self.model.config['epochs']):
             logger.info(f"Epoch {epoch}")
             if isinstance(model, MixtureOfExperts):
                 rl_router = model.unsupervised_router
                 if rl_router and self.model.model.router_config['epochs']:
-                    self.run_rl_combined_model(epoch)
+                    train_results, validate_results = self.run_rl_combined_model(epoch)
                 else:
-                    self.run_normal_model(epoch)
+                    train_results, validate_results = self.run_normal_model(epoch)
                 if not self.model.model.router_config.get('epochs')[0] <= epoch <= \
                        self.model.model.router_config.get('epochs')[1]:
                     # change router
@@ -102,7 +109,10 @@ class Experiment:
                             *utils.get_y_true_and_y_pred_from_expert(model, self.test_loader, i))
                         logger.debug(cm)
             else:
-                self.run_normal_model(epoch)
+                train_results, validate_results = self.run_normal_model(epoch)
+            early_stopping(train_results['total_loss'], validate_results['total_loss'])
+            if early_stopping.early_stop:
+                break
 
     def save_results_in_experiment_folder(self, epoch: int, evaluate_result: Dict, mode: str):
         result_pickle_path = os.path.join(self.experiment_path, 'results', f'epoch_{epoch}_{mode}.pickle')

@@ -7,8 +7,9 @@ from losses import Loss
 class SpecializationLoss(Loss):
     temperature = 0.0001
 
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         super().__init__()
+        self.detach = kwargs.get('detach_experts_grad', False)
 
     def __call__(self, *args, **kwargs):
         route_probabilities = next(
@@ -17,6 +18,8 @@ class SpecializationLoss(Loss):
         labels = next(kwargs[labels] for labels in self.possible_y_true if labels in kwargs.keys())
         logits = kwargs['logits']
         preds = torch.nn.functional.softmax(logits / self.temperature, dim=-1)
+        if self.detach:
+            preds = preds.detach()
         self._calc(route_probabilities, labels, preds)
         return self.stat
 

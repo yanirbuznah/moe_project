@@ -298,7 +298,7 @@ class RewardStrategy:
         # get topk by loss
         _, topk_by_loss = torch.topk(loss_all, k, dim=1, largest=False)
         spearman_corr = spearmanr(topk_routes.cpu().numpy(), topk_by_loss.cpu().numpy(), axis=1)
-        return torch.tensor(spearman_corr.correlation[torch.arange(0,batch_size), torch.arange(batch_size, batch_size * 2)])
+        return torch.FloatTensor(spearman_corr.correlation[torch.arange(0,batch_size), torch.arange(batch_size, batch_size * 2)])
 
 # -CE * max(0.5, p)
 # -CE * p   (p = probability of expert)

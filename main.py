@@ -55,9 +55,12 @@ def main():
             # Initialize wandb if project name is provided
             if wandb_project_name is not None:
                 wandb.init(project=wandb_project_name, config=config)
-
+            #
             # Run the experiment with the current configuration
             run_experiment(config)
+            # print(config['scheduler'])
+            # print(config['model']['loss']['MixtureOfExpertLoss'])
+            # print()
 
     else:
         if wandb_project_name is not None:

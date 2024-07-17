@@ -81,7 +81,8 @@ class Model(nn.Module):
         return self.criterion.__repr__()
 
     def get_losses_details(self):
-        return self.criterion.losses
-
+        if isinstance(self.criterion, LossWrapper):
+            return self.criterion.losses
+        return [self.criterion]
     def alternate_training_modules(self, router_phase):
         self.model.alternate_training_modules(router_phase)

@@ -1,0 +1,9 @@
+ExpertiseLossConfig:
+  name: ExpertiseLoss
+  type: LossCombination
+  operator: "*"
+  losses:
+    - !include loss_configs/consistency_loss_config.yml
+    - !include loss_configs/specialization_loss_config.yml
+  weights: [ 1., 1. ]
+

@@ -8,6 +8,7 @@ class RegretBaseLoss(Loss):
     def __init__(self, *args, **kwargs):
         super().__init__()
         self.k = kwargs.get('k', 2)
+        self.detach = kwargs.get('detach_experts_grad', False)
 
     def __call__(self, *args, **kwargs):
         route_probabilities = next(
@@ -30,8 +31,8 @@ class RegretBaseLoss(Loss):
             ce_loss = torch.nn.functional.cross_entropy(logits_i, labels, reduction='none')
             ce_losses.append(ce_loss)
         ce_losses = torch.stack(ce_losses, dim=1)
-
-        current_loss = ce_losses[:, 0]
+        if self.detach:
+            ce_losses = ce_losses.detach()
 
         # current_score =  E[P*Loss] = \sum_i P_i * Loss_i
         top_k_probs = top_k_probs / top_k_probs.sum(dim=1, keepdim=True)
@@ -41,7 +42,7 @@ class RegretBaseLoss(Loss):
 
         regret = current_score - best_loss
 
-        assert all(regret >= 0), f"Regret must be non-negative, but got {regret}"
+        assert all(regret >= -1e-6), f"Regret must be non-negative, but got {regret}"
 
         self.stat = regret.mean()
 

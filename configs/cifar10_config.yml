@@ -1,11 +1,11 @@
 log:
-  wandb_project_name: resnet_cifar10_experiment
+  wandb_project_name: linear_balancing_resnet_cifar10_experiment_detached_experts
   experiment_name: dummy_experiment
   experiment_description: dummy_description
 
 
 dataloader: !include dataloader_configs/cifar10_dataloader_config.yml
-
+scheduler: true
 model:
   model: !include model_configs/resnet18_model_config.yml
   loss: !include loss_configs/moe_loss_config.yml
@@ -14,17 +14,15 @@ model:
 
 
 metrics:
-    - SuperClassConfusionMatrix
     - MOEConfusionMatrix
     - ConfusionMatrix
     - Accuracy
-    - F1
-    - Precision
-    - Recall
+#    - F1
+#    - Precision
+#    - Recall
 #    - pvalue
 #    - RouterVsRandomAcc
-    - ExpertEntropy
-    - SuperClassEntropy
+#    - ExpertEntropy
     - Consistency
     - Specialization
     - NewSpecialization

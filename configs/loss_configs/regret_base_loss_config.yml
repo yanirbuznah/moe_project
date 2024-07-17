@@ -1,4 +1,6 @@
 RegretBaseLoss:
   name: RegretBaseLoss
+  type: RegretBaseLoss
   params:
     k: 2
+    detach_experts_grad: true
