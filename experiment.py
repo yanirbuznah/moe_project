@@ -68,15 +68,13 @@ class Experiment:
         logger.info(f"Train: {train_evaluate_results}")
         logger.info(f"Validate: {validate_evaluate_results}")
         if wandb.run:
-            train_evaluate_results = {f'train_{k}': v for k, v in train_evaluate_results.items()}
-            validate_evaluate_results = {f'validate_{k}': v for k, v in validate_evaluate_results.items()}
-            wandb.log({**train_evaluate_results, **validate_evaluate_results})
+            wandb.log({'train': train_evaluate_results, 'validate': validate_evaluate_results})
         return train_evaluate_results, validate_evaluate_results
 
     def run_normal_model(self, epoch):
         if self.model.alternate:
             router_phase = epoch % self.model.alternate == 0 and epoch != 0
-            # self.model.alternate_training_modules(router_phase)
+            self.model.alternate_training_modules(router_phase)
         utils.run_train_epoch(self.model, self.train_loader, self.scheduler)
         train_evaluate_results = self.evaluate_and_save_results(epoch, mode='train', model=self.model)
         validate_evaluate_results = self.evaluate_and_save_results(epoch, mode='test', model=self.model)
