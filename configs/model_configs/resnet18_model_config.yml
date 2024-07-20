@@ -2,6 +2,7 @@ type: moe
 
 router:
   type: resnet
+  action_assignment_strategy: LinearAssignmentByDiff
   model_config: !include router_configs/resnet_18_router_config.yml
   epochs: [0, 100]
   supervised: true
