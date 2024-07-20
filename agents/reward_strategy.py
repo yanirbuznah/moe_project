@@ -166,27 +166,10 @@ class RewardStrategy:
         out, y = self._get_output_from_model(action, model, sample) if out is None else (out, y)
         preds = torch.argmax(out, dim=1)
         consistency, specialization = self._get_C_matrix(preds, action.detach(), y)
-        load = torch.FloatTensor(consistency.sum(axis=1)) / self.num_of_classes
+        load = consistency.sum(axis=1) / self.num_of_classes
         acc = preds == y
-        # output_of_true_class = out[torch.arange(len(out)), y]
-        # rewards = [
-        # output_of_true_class[i] * consistency[action[i], y[i]] * specialization[action[i], y[i]] / load[action[i]]
-        # for i in range(len(acc))]
-        rewards = [acc[i] * consistency[action[i], y[i]] * specialization[action[i], y[i]] / load[action[i]] for i in
-                   range(len(acc))]
-        # rewards = [acc[i] * consistency[action[i], y[i]] * specialization[action[i],y[i]] * load_var for i in range(len(acc))]
-        rewards = torch.stack(rewards) if isinstance(rewards[0], torch.Tensor) else torch.FloatTensor(rewards)
-        return rewards
-    def _get_C_matrix(self, preds, routes, true_assignments):
-        specialization = np.zeros((self.num_of_experts, self.num_of_classes))
-        consistency = np.zeros((self.num_of_experts, self.num_of_classes))
-        for i in range(len(preds)):
-            specialization[routes[i], true_assignments[i]] += int(true_assignments[i] == preds[i])
-            consistency[routes[i], true_assignments[i]] += 1
+        return acc * consistency[action, y] * specialization[action, y] / load[action]
 
-        specialization = specialization / np.maximum(consistency, 1)  #
-        consistency = consistency / np.maximum(consistency.sum(axis=0, keepdims=True), 1)
-        return consistency, specialization
 
 
 
@@ -249,14 +232,13 @@ class RewardStrategy:
         return 1 - normalized_entropy
 
     def _get_C_matrix(self, preds, routes, true_assignments):
-        specialization = np.zeros((self.num_of_experts, self.num_of_classes))
-        consistency = np.zeros((self.num_of_experts, self.num_of_classes))
-        for i in range(len(preds)):
-            specialization[routes[i], true_assignments[i]] += int(true_assignments[i] == preds[i])
-            consistency[routes[i], true_assignments[i]] += 1
-
-        specialization = specialization / np.maximum(consistency, 1)  #
-        consistency = consistency / np.maximum(consistency.sum(axis=0, keepdims=True), 1)
+        one_hot_routes = torch.nn.functional.one_hot(routes).float().T
+        one_hot_labels = torch.nn.functional.one_hot(true_assignments).float()
+        oh_preds = torch.nn.functional.one_hot(preds)
+        consistency =  one_hot_routes @ one_hot_labels
+        specialization = one_hot_routes @ (one_hot_labels * oh_preds)
+        specialization = specialization / torch.maximum(consistency, torch.ones(1).to(consistency.device))
+        consistency = specialization / torch.maximum(consistency, torch.ones(1).to(consistency.device))
         return consistency, specialization
 
     # A: Aij = class j goes to expert i
@@ -312,3 +294,5 @@ class RewardStrategy:
 
 # check different alphas in tanh
 # what about remove the replay buffer and just use the current batch?
+import time
+time.time()
