@@ -4,7 +4,7 @@ import traceback
 import torch
 from torch import nn
 
-from utils.assignment_utils import balanced_assignment
+from utils.assignment_utils import action_assignment_strategy
 from . import utils
 
 
@@ -25,13 +25,16 @@ class MixtureOfExperts(nn.Module):
 
         self.unsupervised_router = not model_config['router']['supervised']
         self.router_config = model_config['router']
+        self.assignment_function = action_assignment_strategy(
+            self.router_config.get('action_assignment_strategy', None))
         self.router = utils.get_router(self)
         if model_config.get('softmax', False) and not isinstance(list(self.experts[0].modules())[-1], nn.Softmax):
             self.softmax = nn.Softmax(dim=-1)
         else:
             self.softmax = nn.Identity()
         if not self.unsupervised_router:
-            self.router_softmax = nn.Identity() if isinstance(list(self.router.modules())[-1], nn.Softmax) else nn.Softmax(dim=-1)
+            self.router_softmax = nn.Identity() if isinstance(list(self.router.modules())[-1],
+                                                              nn.Softmax) else nn.Softmax(dim=-1)
         self.encoder = utils.get_model(model_config['encoder'],
                                        output_shape=self.input_shape_router) if model_config.get('encoder',
                                                                                                  False) else nn.Identity()
@@ -70,7 +73,6 @@ class MixtureOfExperts(nn.Module):
         routes = self.router(x_enc)
         return routes
 
-
     def forward_unsupervised(self, x, *, routes=None):
         x = self.encoder(x)
         # get the routing probabilities
@@ -95,10 +97,7 @@ class MixtureOfExperts(nn.Module):
         # get the routing probabilities
         routes_logits = self.supervised_router_step(x)
         routes_probs = self.router_softmax(routes_logits)
-
-        router_probs_max, routes = torch.max(routes_probs, dim=-1)
-
-        routes = balanced_assignment(scores=routes_logits.T)
+        routes = self.assignment_function(routes_logits)
 
         # get the indexes of the samples for each expert
         indexes_list = self.get_indexes_list(routes)
@@ -111,7 +110,7 @@ class MixtureOfExperts(nn.Module):
         # logits = logits * (router_probs_max / router_probs_max.detach()).view(-1, 1)
 
         return {'output': self.softmax(logits), 'logits': logits, 'router_probs': routes_probs, 'counts': counts,
-                'routes':routes}
+                'routes': routes}
 
     def forward(self, x):
         if self.unsupervised_router:

@@ -14,6 +14,8 @@ def action_assignment_strategy(strategy: str):
         return LinearAssignmentWithCapacity()
     elif strategy == 'LinearAssignmentByDiff':
         return LinearAssignmentByDiff()
+    elif strategy == 'BaseLinearAssignment':
+        return BaseLinearAssignment()
     else:
         raise ValueError(f'Unknown strategy {strategy}')
 
@@ -100,9 +102,9 @@ class LinearAssignmentByDiff(LinearAssignmentWithCapacity):
         diff_matrix[diff_matrix == 0] = float('inf')
         while torch.any(assignment_to_remove > 0):
             min_routes, assignment = torch.min(diff_matrix, dim=-1)
-            sorted_min_routes, indices = torch.sort(min_routes)
+            _, indices = torch.sort(min_routes)
             sorted_assignment = assignment[indices]
-            for i, (expert, route) in enumerate(zip(sorted_assignment, sorted_min_routes)):
+            for i, expert in enumerate(sorted_assignment):
                 prev_assignment = initial_assignment[indices[i]]
                 if assignment_to_remove[prev_assignment] > 0:
                     assignment_to_remove[prev_assignment] -= 1
@@ -110,70 +112,105 @@ class LinearAssignmentByDiff(LinearAssignmentWithCapacity):
                     assignment_to_remove[expert] += 1
                     diff_matrix[indices[i], expert] = float('inf')
         return initial_assignment
+class BaseLinearAssignment:
+    def __init__(self, capacity: float = 1.2):
+        self.capacity = capacity
 
-        # for i, (expert, route) in enumerate(zip(assignment, min_routes)):
-        #
-        # while len(unassigned) > 0:
-        #     routes_min, experts = torch.min(diff_matrix, dim=-1)
-        #     route_max = routes[torch.arange(routes.size(0)), experts]
-        #     diff_matrix = diff_matrix + route_max.view(-1, 1)
-        #     for i, (expert, route) in enumerate(zip(experts, routes_min)):
-        #         if i in unassigned:
-        #             experts_assignments[expert].append([i, route.item()])
-        #     experts_assignments = [sorted(expert, key=lambda x: x[1], reverse=True) for expert in experts_assignments]
-        #     unassigned = [expert[max_capacity:] for expert in experts_assignments]
-        #     unassigned = [i[0] for expert in unassigned for i in expert]
-        #     routes[unassigned, experts[unassigned]] = -np.inf
-        #     unassigned = set(unassigned)
-        #     experts_assignments = [expert[:max_capacity] for expert in experts_assignments]
-        # experts_assignments = [[i[0] for i in expert] for expert in experts_assignments]
-        # return experts_assignments
+    def __call__(self, routes):
+        if routes.shape[0] > routes.shape[1]:
+            routes = routes.T
+        max_capacity = round(self.capacity * routes.shape[1] / routes.shape[0])
+        assignments =  self._get_experts_assignment(routes, max_capacity)
+        return assignments
 
+    def _get_experts_assignmentT(self, scores: torch.Tensor, max_capacity: int, max_iterations: int = 100):
+        # score is a matrix of shape (num_workers, num_jobs)
+        eps = 1e-6
+        num_jobs, num_workers = scores.size()
+        jobs_per_worker = max_capacity
+        value = scores.clone()
 
-def balanced_assignment(scores, max_iterations=100):
-    # score is a matrix of shape (num_workers, num_jobs)
-    eps = 1e-6
-    num_workers, num_jobs = scores.size()
-    jobs_per_worker = 1 + int(1.2*num_jobs) // num_workers
-    value = scores.clone()
+        iterations = 0
+        cost = scores.new_zeros(1, num_jobs).float()
 
-    iterations = 0
-    cost = scores.new_zeros(1, num_jobs).float()
+        jobs_with_bids = torch.zeros(num_workers).bool()
 
-    jobs_with_bids = torch.zeros(num_workers).bool()
+        while not jobs_with_bids.all():
+            top_values, top_index = torch.topk(value, k=jobs_per_worker + 1, dim=0)
 
-    while not jobs_with_bids.all():
-        top_values, top_index = torch.topk(value, k=jobs_per_worker + 1, dim=1)
+            # Each worker bids the difference in value between a job and the k+1th job
+            bid_increments = top_values[:-1, :] - top_values[-1:, :] + eps
+            bids = torch.scatter(torch.zeros_like(scores), dim=1, index=top_index[:-1, :], src=bid_increments)
 
-        # Each worker bids the difference in value between a job and the k+1th job
-        bid_increments = top_values[:, :-1] - top_values[:, -1:] + eps
-        bids = torch.scatter(torch.zeros_like(scores), dim=1, index=top_index[:, :-1], src=bid_increments)
+            if 0 < iterations < max_iterations:
+                # If a worker won a job on the previous round, put in a minimal bid to retain
+                # the job only if no other workers bid this round.
+                bids[top_bidders, jobs_with_bids] = eps
 
-        if 0 < iterations < max_iterations:
-            # If a worker won a job on the previous round, put in a minimal bid to retain
-            # the job only if no other workers bid this round.
-            bids[top_bidders, jobs_with_bids] = eps
+            # Find the highest bidding worker per job
+            top_bids, top_bidders = bids.max(dim=1)
+            jobs_with_bids = top_bids > 0
+            top_bidders = top_bidders[jobs_with_bids]
 
-        # Find the highest bidding worker per job
-        top_bids, top_bidders = bids.max(dim=0)
-        jobs_with_bids = top_bids > 0
-        top_bidders = top_bidders[jobs_with_bids]
+            # Make popular items more expensive
+            cost += top_bids
+            value = scores - cost
 
-        # Make popular items more expensive
-        cost += top_bids
-        value = scores - cost
+            if iterations < max_iterations:
+                # If a worker won a job, make sure it appears in its top-k on the next round
+                value[jobs_with_bids,top_bidders] = float('inf')
+            else:
+                value[jobs_with_bids, top_bidders] = scores[jobs_with_bids, top_bidders]
+            iterations += 1
 
-        if iterations < max_iterations:
-            # If a worker won a job, make sure it appears in its top-k on the next round
-            value[top_bidders, jobs_with_bids] = float('inf')
-        else:
-            value[top_bidders, jobs_with_bids] = scores[top_bidders, jobs_with_bids]
-        iterations += 1
+            if iterations >= max_iterations:
+                break
 
-        if iterations >= max_iterations:
-            break
+        return top_bidders
+    def _get_experts_assignment(self, scores:torch.Tensor, max_capacity:int, max_iterations:int =100):
+        # score is a matrix of shape (num_workers, num_jobs)
+        eps = 1e-6
+        num_workers, num_jobs = scores.size()
+        jobs_per_worker = max_capacity
+        value = scores.clone()
 
-    return top_bidders
+        iterations = 0
+        cost = scores.new_zeros(1, num_jobs).float()
+
+        jobs_with_bids = torch.zeros(num_workers).bool()
+
+        while not jobs_with_bids.all():
+            top_values, top_index = torch.topk(value, k=jobs_per_worker + 1, dim=1)
+
+            # Each worker bids the difference in value between a job and the k+1th job
+            bid_increments = top_values[:, :-1] - top_values[:, -1:] + eps
+            bids = torch.scatter(torch.zeros_like(scores), dim=1, index=top_index[:, :-1], src=bid_increments)
+
+            if 0 < iterations < max_iterations:
+                # If a worker won a job on the previous round, put in a minimal bid to retain
+                # the job only if no other workers bid this round.
+                bids[top_bidders, jobs_with_bids] = eps
+
+            # Find the highest bidding worker per job
+            top_bids, top_bidders = bids.max(dim=0)
+            jobs_with_bids = top_bids > 0
+            top_bidders = top_bidders[jobs_with_bids]
+
+            # Make popular items more expensive
+            cost += top_bids
+            value = scores - cost
+
+            if iterations < max_iterations:
+                # If a worker won a job, make sure it appears in its top-k on the next round
+                value[top_bidders, jobs_with_bids] = float('inf')
+            else:
+                value[top_bidders, jobs_with_bids] = scores[top_bidders, jobs_with_bids]
+            iterations += 1
+
+            if iterations >= max_iterations:
+                break
+
+        return top_bidders
 
 
 
