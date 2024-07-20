@@ -31,8 +31,8 @@ def main():
     wandb_project_name = config['log'].get('wandb_project_name', None)
 
     def set_value_by_key_from_nested_dict(nested_dict, key, value):
+        key_name = list(key.keys())[0] if isinstance(key, dict) else key
         for k, v in nested_dict.items():
-            key_name = list(key.keys())[0] if isinstance(key, dict) else key
             if k == key_name:
                 if isinstance(v, dict):
                     # next_key = list(key[k].keys())[0]
