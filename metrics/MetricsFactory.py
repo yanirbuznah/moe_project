@@ -1,7 +1,9 @@
 from metrics import *
 from metrics.ClassificationMetric import ClassificationMetric
 from metrics.MOEMetric import MOEMetric, PValue, MOEConfusionMatrix, RouterVSRandomAcc, \
-    ExpertEntropy, SuperClassEntropy, SuperClassConfusionMatrix, Consistency, Specialization, NewSpecialization
+    ExpertEntropy, SuperClassEntropy, SuperClassConfusionMatrix, Consistency, Specialization, NewSpecialization, \
+    DeadExperts
+from models.MOE import MixtureOfExperts
 
 
 class MetricsFactory:
@@ -42,6 +44,8 @@ class MetricsFactory:
                 self.metrics_list.append(Specialization())
             elif metric.lower() == 'newspecialization':
                 self.metrics_list.append(NewSpecialization())
+            elif metric.lower() == 'deadexperts':
+                self.metrics_list.append(DeadExperts())
 
             # else:
             #     self.metrics_list.append(MOEMetric())
@@ -66,7 +70,8 @@ class MetricsFactory:
 
     def update_metrics(self, *args, **kwargs):
         self.classification_metrics(*args, **kwargs)
-        self.moe_metric(*args, **kwargs)
+        if isinstance(kwargs['model'], MixtureOfExperts):
+            self.moe_metric(*args, **kwargs)
 
     def reset(self):
         for metric in self.metrics_list:

@@ -58,7 +58,8 @@ class Model(nn.Module):
         x, y = x.to(self.device), y.to(self.device)
         output = self.forward(x)
         if isinstance(output, torch.Tensor):
-            output = {'output': output}
+            output = {'output': output, 'logits':output}
+
         kwargs = output.copy()
         kwargs['target'] = y
         kwargs['model'] = self.model
@@ -84,5 +85,6 @@ class Model(nn.Module):
         if isinstance(self.criterion, LossWrapper):
             return self.criterion.losses
         return [self.criterion]
+
     def alternate_training_modules(self, router_phase):
         self.model.alternate_training_modules(router_phase)

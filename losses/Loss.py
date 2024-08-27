@@ -5,7 +5,7 @@ class Loss:
         self._model = None
 
     def init_possible_input_options(self):
-        self.possible_y_pred = ['y_pred', 'output', 'y_hat', 'out']
+        self.possible_y_pred = ['y_pred', 'output', 'y_hat', 'out', 'logits']
         self.logits = ['logits']
         self.possible_y_true = ['target', 'y_true']
         self.possible_route_probabilities = ['route_probabilities', 'route_prob', 'route_probs', 'router_probs']

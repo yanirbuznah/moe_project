@@ -10,8 +10,7 @@ from tqdm import tqdm
 import models.utils as ut
 from agents.custom_env import CustomEnv
 from models.MOE import MixtureOfExperts
-from utils.assignment_utils import LinearAssignment, LinearAssignmentWithCapacity, LinearAssignmentByDiff, \
-    action_assignment_strategy
+from utils.assignment_utils import action_assignment_strategy
 
 
 class DQN(nn.Module):
@@ -103,14 +102,21 @@ class Agent:
         self.epsilon_decay = self.config.get('epsilon_decay', 0.999)
         self.epsilon_min = self.config.get('epsilon_min', 0.01)
         self.q_net = DQN(self.state_dim, self.action_dim, self.hidden_dim, backbone).to(model.device)
-        self.target_net = DQN(self.state_dim, self.action_dim, self.hidden_dim, backbone).to(model.device)
-        self.target_net.load_state_dict(self.q_net.state_dict())
+        # self.target_net = DQN(self.state_dim, self.action_dim, self.hidden_dim, backbone).to(model.device)
+        # self.target_net.load_state_dict(self.q_net.state_dict())
         self.memory = ReplayBuffer(self.buffer_capacity)
         self.optimizer = optim.Adam(self.q_net.parameters(), lr=self.lr)
-        self.action_assignment = action_assignment_strategy(self.config.get('action_assignment_strategy', None))
+        self.action_assignment_name = self.config.get('action_assignment_strategy', None)
+        self.action_assignment = action_assignment_strategy(self.action_assignment_name)
+        self.reward_function_name = self.config['reward_function']
+
+
+    def __repr__(self):
+        return 'DQN Agent'
+
     def __call__(self, *args, **kwargs):
-        return nn.Softmax(dim=1)(self.q_net(*args, **kwargs))
-        # return self.q_net(*args, **kwargs)
+        # return nn.Softmax(dim=1)(self.q_net(*args, **kwargs))
+        return self.q_net(*args, **kwargs)
 
     def _get_backbone(self):
         backbone_config = self.config.get('backbone', None)
@@ -120,11 +126,11 @@ class Agent:
 
     def to(self, device):
         self.q_net.to(device)
-        self.target_net.to(device)
+        # self.target_net.to(device)
         return self
 
     def act(self, state, training=False):
-        if training:
+        if True or training:
             if random.uniform(0, 1) < self.epsilon:
                 return torch.randint(0, self.action_dim, (state.shape[0],)).to(self.model.device)
             else:
@@ -160,12 +166,13 @@ class Agent:
             expected_q_values = reward_batch
         # loss = nn.HuberLoss()(q_values, expected_q_values)
         loss = nn.MSELoss()(q_values, expected_q_values)
+        # loss = nn.SmoothL1Loss()(q_values, expected_q_values)
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
 
-    def update_target_net(self):
-        self.target_net.load_state_dict(self.q_net.state_dict())
+    # def update_target_net(self):
+    #     self.target_net.load_state_dict(self.q_net.state_dict())
 
     def learn(self):
         rewards = 0
@@ -186,14 +193,14 @@ class Agent:
             _, reward, _, _ = self.env.step(action)
             self.memory.append(state, action, reward)
             self.update()
-            if episode % 10 == 0:
-                self.update_target_net()
+            # if episode % 10 == 0:
+            #     self.update_target_net()
             self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
             rewards += (reward.mean().item())
             pbar.set_postfix({'Epsilon': round(self.epsilon, 3), 'mean Reward': rewards / (episode + 1)})
         print("\n")
         mean_reward = rewards / (episode + 1)
-        print(f"Mean reward: {mean_reward}")
+        print(f"Mean {self.reward_function_name} reward: {mean_reward}, with Assignment Strategy {self.action_assignment_name}")
         if wandb.run:
             wandb.log({"mean_reward": mean_reward})
             # print("\rEpisode: {}\{}, Epsilon: {},  mean Reward: {}".format(episode, self.num_of_episodes,

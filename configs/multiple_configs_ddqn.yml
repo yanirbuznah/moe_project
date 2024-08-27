@@ -8,10 +8,13 @@ changes:
             model_config:
               reward_function
     options:
-#      - SpearmanCorrelation
-#      - Expertise
-#      - Proposal
       - SpecializationAndConsistency
+        # - CrossEntropyRouting
+        #- RegretBasedNew
+        #- SpearmanCorrelation
+        #- RegretBased
+        #- Expertise
+        #- ProposalSpecializationAndConsistency
   - key:
       model:
         model:
@@ -21,4 +24,20 @@ changes:
     options:
 #      - LinearAssignmentByDiff
       - LinearAssignmentWithCapacity
-      - none
+#      - BaseLinearAssignment
+#      - none
+
+  - key:
+      scheduler
+    options:
+#      - false
+      - true
+
+  - key:
+      model:
+        model:
+          alternate
+    options:
+      - 0
+      - 2
+      - 5

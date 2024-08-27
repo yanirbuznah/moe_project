@@ -5,7 +5,8 @@ from torch import nn
 from agents import dqn, ppo
 from agents.custom_env import CustomEnv
 from losses import CrossEntropyLoss, MSELoss, L1Loss, SwitchLoadBalancingLoss, LossWrapper, SpecializationLoss, \
-    ConsistencyLoss, RankCorrelationLoss, RegretBaseLoss
+    ConsistencyLoss, RankCorrelationLoss, RegretBaseLoss, CrossEntropyRoutingLoss, FakeCrossEntropyLoss, \
+    HingeBalancingLoss
 from metrics.MetricsFactory import MetricsFactory
 from models.MLP import MLP
 from models.MOE import MixtureOfExperts
@@ -91,29 +92,35 @@ def get_loss(loss: dict):
     for k, v in loss.items():
         if v is None:
             raise ValueError(f"Loss {k} is required")
-        if v['type'] == 'LossCombination':
-            operator = v['operator']
-            losses_list = [get_loss(l) for l in v['losses']]
-            weights_dict = v.get('weights', None)
-            return LossWrapper(operator, losses_list, weights_dict)
-        elif v['type'].lower() == 'crossentropyloss':
-            return CrossEntropyLoss(**v['params'])
-        elif v['type'].lower() == 'mseloss':
-            return MSELoss(**v['params'])
-        elif v['type'].lower() == 'l1loss':
-            return L1Loss(**v['params'])
-        elif v['type'].lower() == 'switchloadbalancingloss':
-            return SwitchLoadBalancingLoss()
-        elif v['type'].lower() == 'specializationloss':
-            return SpecializationLoss(**v['params'])
-        elif v['type'].lower() == 'consistencyloss':
-            return ConsistencyLoss()
-        elif v['type'].lower() == 'rankcorrelationloss':
-            return RankCorrelationLoss(**v['params'])
-        elif v['type'].lower() == 'regretbaseloss':
-            return RegretBaseLoss(**v['params'])
-        else:
-            raise NotImplementedError(f"Loss {k} not implemented")
+    if v['type'] == 'LossCombination':
+        operator = v['operator']
+        losses_list = [get_loss(l) for l in v['losses']]
+        weights_dict = v.get('weights', None)
+        return LossWrapper(operator, losses_list, weights_dict)
+    elif v['type'].lower() == 'crossentropyloss':
+        return CrossEntropyLoss(**v['params'])
+    elif v['type'].lower() == 'mseloss':
+        return MSELoss(**v['params'])
+    elif v['type'].lower() == 'l1loss':
+        return L1Loss(**v['params'])
+    elif v['type'].lower() == 'switchloadbalancingloss':
+        return SwitchLoadBalancingLoss()
+    elif v['type'].lower() == 'specializationloss':
+        return SpecializationLoss(**v['params'])
+    elif v['type'].lower() == 'consistencyloss':
+        return ConsistencyLoss()
+    elif v['type'].lower() == 'rankcorrelationloss':
+        return RankCorrelationLoss(**v['params'])
+    elif v['type'].lower() == 'regretbaseloss':
+        return RegretBaseLoss(**v['params'])
+    elif v['type'].lower() == 'fakecrossentropyloss':
+        return FakeCrossEntropyLoss(**v['params'])
+    elif v['type'].lower() == 'crossentropyroutingloss':
+        return CrossEntropyRoutingLoss(**v['params'])
+    elif v['type'].lower() == 'hingebalancingloss':
+        return HingeBalancingLoss(**v['params'])
+    else:
+        raise NotImplementedError(f"Loss {k} not implemented")
 
 
 def get_metrics(metrics: dict, num_classes: int):

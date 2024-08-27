@@ -151,6 +151,9 @@ class Agent:
         self.epsilon_decay = self.config.get('epsilon_decay', 0.999)
         self.epsilon_min = self.config.get('epsilon_min', 0.01)
 
+    def __repr__(self):
+        return 'PPO Agent'
+
     def __call__(self, state: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         state = self.encoder(state)
         dist = self.actor(state)

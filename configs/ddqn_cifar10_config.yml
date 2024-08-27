@@ -1,11 +1,12 @@
 log:
-  wandb_project_name: cifar10_reward_experiment
-  experiment_name: cifar10_debug_experiment
-  experiment_description: new expertise metric
+  wandb_project_name: cifar100_reward_function_experiment
+  experiment_name: cifar100_debug_experiment
+  experiment_description: cifar 100 reward experiment
 
 # experiment: !include experiment_configs/experiment_config.yml
 
-dataloader: !include dataloader_configs/cifar10_dataloader_config.yml
+dataloader: !include dataloader_configs/cifar100_dataloader_config.yml
+scheduler: true
 
 model:
   model: !include model_configs/ddqn_model_config.yml
@@ -17,20 +18,20 @@ model:
 metrics:
     - SuperClassConfusionMatrix
     - MOEConfusionMatrix
-    - ConfusionMatrix
+#    - ConfusionMatrix
     - Accuracy
-    - F1
-    - Precision
-    - Recall
+#    - F1
+#    - Precision
+#    - Recall
 #    - pvalue
 #    - RouterVsRandomAcc
-    - ExpertEntropy
-    - SuperClassEntropy
+#    - ExpertEntropy
     - Consistency
     - Specialization
-    - NewSpecialization
+    - DeadExperts
+
 
 seed: 0
-epochs: 100
+epochs: 1000
 
 # Path: configs\experiment_configs\dummy_config.yml

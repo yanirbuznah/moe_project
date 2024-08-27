@@ -7,4 +7,7 @@ from .SpecializationLoss import SpecializationLoss
 from .ConsistencyLoss import ConsistencyLoss
 from .RankCorrelationLoss import RankCorrelationLoss
 from .RegretBaseLoss import RegretBaseLoss
+from .CrossEntropyRoutingLoss import CrossEntropyRoutingLoss
+from .FakeCrossEntropyLoss import FakeCrossEntropyLoss
+from .HingeBalancingLoss import HingeBalancingLoss
 from .LossWrapper import LossWrapper

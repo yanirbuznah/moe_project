@@ -8,17 +8,56 @@ changes:
             losses
     options:
       - - !include loss_configs/cross_entropy_loss_config.yml
-        - !include loss_configs/regret_base_loss_config.yml
+        - !include loss_configs/consistency_loss_config.yml
+#        - RegretBaseLoss:
+#            name: RegretBaseLoss
+#            type: RegretBaseLoss
+#            params:
+#              k: 5
+#              detach_experts_grad: true
+        - !include loss_configs/switch_load_balancing_loss_config.yml
+#      - - !include loss_configs/hinge_balancing_loss_config.yml
 #      - - !include loss_configs/cross_entropy_loss_config.yml
-#        - !include loss_configs/expertise_loss_config.yml
+#        - RegretBaseLoss:
+#            name: RegretBaseLoss
+#            type: RegretBaseLoss
+#            params:
+#              k: 3
+#              detach_experts_grad: true
+#        - !include loss_configs/switch_load_balancing_loss_config.yml
+#      - - !include loss_configs/cross_entropy_loss_config.yml
+#        - RegretBaseLoss:
+#            name: RegretBaseLoss
+#            type: RegretBaseLoss
+#            params:
+#              k: 2
+#              detach_experts_grad: true
+#        - !include loss_configs/switch_load_balancing_loss_config.yml
+#      #        - !include loss_configs/switch_load_balancing_loss_config.yml
+#      - - !include loss_configs/cross_entropy_loss_config.yml
+#        - !include loss_configs/cross_entropy_routing_loss_config.yml
+#        - !include loss_configs/switch_load_balancing_loss_config.yml
+
+  #      - - !include loss_configs/cross_entropy_loss_config.yml
+#        - !include loss_configs/rank_correlation_loss_config.yml
+#        - !include loss_configs/hinge_balancing_loss_config.yml
+
+#      - - !include loss_configs/cross_entropy_loss_config.yml
+#      - - !include loss_configs/expertise_loss_config.yml
 #
 #      - - !include loss_configs/cross_entropy_loss_config.yml
-#        - !include loss_configs/rank_correlation_loss_config.yml
+#      - - !include loss_configs/rank_correlation_loss_config.yml
 #      - - !include loss_configs/cross_entropy_loss_config.yml
 #        - !include loss_configs/switch_load_balancing_loss_config.yml
 #      - - !include loss_configs/cross_entropy_loss_config.yml
-#        - !include loss_configs/consistency_loss_config.yml
+#      - - !include loss_configs/consistency_loss_config.yml
 #        - !include loss_configs/specialization_loss_config.yml
+#      - - !include loss_configs/cross_entropy_routing_loss_config.yml
+#        - !include loss_configs/cross_entropy_loss_config.yml
+#      - - !include loss_configs/cross_entropy_loss_config.yml
+#      - - !include loss_configs/hinge_balancing_loss_config.yml
+#        - !include loss_configs/cross_entropy_routing_loss_config.yml
+
 
 
   - key:
@@ -27,15 +66,15 @@ changes:
           MixtureOfExpertLoss:
             weights
     options:
-      - [1., 0.1, 0.1]
-      - [1. , 0.5, 0.1]
-      - [1., 1.]
+      - [1., 1., 1.]
+#      - [1., 1., 0.1]
+#      - [1. , 0.1, 1.]
 
   - key:
         scheduler
     options:
       - false
-      - true
+#      - true
 
   - key:
       model:
@@ -44,14 +83,14 @@ changes:
             action_assignment_strategy
     options:
       - none
-      - LinearAssignmentWithCapacity
-      - LinearAssignmentByDiff
-      - BaseLinearAssignment
+#      - LinearAssignmentWithCapacity
+#      - LinearAssignmentByDiff
+#      - BaseLinearAssignment
   - key:
       model:
         model:
           alternate
     options:
-      - 0
+#      - 0
       - 2
-      - 5
+#      - 5

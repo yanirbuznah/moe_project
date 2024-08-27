@@ -145,6 +145,7 @@ class MOEConfusionMatrix(MOEMetric):
     def compute_manual(*, gates, labels, num_experts, class_names):
         return pd.DataFrame(confusion_matrix(labels, gates)[:, :num_experts], index=class_names)
 
+
 class SuperClassConfusionMatrix(MOEMetric):
     def compute(self):
         if len(self.super_classes) == 0:
@@ -263,7 +264,6 @@ class NewSpecialization(MOEMetric):
         specialization = (accuracy * total_assignments_probs).sum(axis=0).mean()  # calculate the specialization
         return specialization
 
-
     @staticmethod
     def compute_manual(*, gates, labels, correct, num_experts, num_classes):
         accuracy = np.zeros((num_experts, num_classes))
@@ -277,21 +277,30 @@ class NewSpecialization(MOEMetric):
         return specialization
 
 
+class DeadExperts(MOEMetric):
+    def compute(self):
+        return self.num_experts - self.gates.unique().shape[0]
+
+    @staticmethod
+    def compute_manual(*, gates):
+        x = 4
 
 
 if __name__ == '__main__':
     import pickle
+
 
     def convert_args(x):
         x = {'gates': x['routes'], 'labels': x['target'], 'correct': x['target'] == torch.argmax(x['output'], dim=-1),
              'num_experts': len(x['counts']), 'num_classes': 1 + max(x['target']).item()}
         return x
 
-    x = pickle.load(open('kwargs.pickle', 'rb'))
 
+    x = pickle.load(open('/home/dsi/buznahy/moe_project/metrics/kwargs.pickle', 'rb'))
+    res = DeadExperts.compute_manual(gates=x['gates'])
     confusion_matrix1 = MOEConfusionMatrix.compute_manual(
-        gates=x['gates'], labels=x['labels'], num_experts=x['num_experts'], class_names=[str(i) for i in range(x['num_classes'])])
-
+        gates=x['gates'], labels=x['labels'], num_experts=x['num_experts'],
+        class_names=[str(i) for i in range(x['num_classes'])])
 
     res1 = Specialization.compute_manual(gates=x['gates'], labels=x['labels'], correct=x['correct'],
                                          num_experts=x['num_experts'], num_classes=x['num_classes'])

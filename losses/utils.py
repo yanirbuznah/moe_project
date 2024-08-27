@@ -6,7 +6,7 @@ def get_operator(function: str):
         return lambda *args: sum(args)
     elif function in ['-', 'sub']:
         return lambda *args: args[0] - sum(args[1:])
-    elif function in ['*', 'mul']:
+    elif function in ['*', 'mul', 'x', 'X']:
         return lambda *args: torch.prod(torch.stack(args))
     elif function in ['/', 'div']:
         return lambda *args: args[0] / torch.prod(torch.stack(args[1:]))

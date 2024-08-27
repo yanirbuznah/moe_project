@@ -24,18 +24,18 @@ class RankCorrelationLoss(Loss):
         route_probabilities_sorted, route_indices = torch.sort(route_probabilities, dim=1, descending=True)
         route_probabilities_sorted = route_probabilities_sorted[:, :self.k]
         # get the cross entropy loss for the top k routes
-        ce_losses = [torch.nn.functional.cross_entropy(logits, labels, reduction='none')]
-        for i in range(1, self.k):
+        ce_losses = []
+        for i in range(self.k):
             logits_i = self.model.get_unsupervised_output(x, routes=route_indices[:, i])
             ce_loss = torch.nn.functional.cross_entropy(logits_i, labels, reduction='none')
             ce_losses.append(ce_loss)
-        ce_losses = torch.stack(ce_losses, dim=1)
-        if self.detach:
-            ce_losses = ce_losses.detach()
-        ce_losses_normalized = ce_losses - torch.mean(ce_losses, dim=1, keepdim=True)
+        ce_losses = -1 * torch.stack(ce_losses, dim=1)
+        # if self.detach:
+        #     ce_losses = ce_losses.detach()
+        ce_losses_normalized = ce_losses - torch.mean(ce_losses, dim=1, keepdim=True) # X - E[X]
 
-        route_probabilities_normalized = route_probabilities_sorted - torch.mean(route_probabilities_sorted, dim=1,
-                                                                                 keepdim=True)
+        route_probabilities_normalized = route_probabilities - torch.mean(route_probabilities, dim=1,
+                                                                                 keepdim=True) # Y - E[Y]
 
         # find the covariance between route_probabilities and ce_losses
         cov = torch.sum(route_probabilities_normalized * ce_losses_normalized, dim=1)
@@ -44,8 +44,8 @@ class RankCorrelationLoss(Loss):
         # find the standard deviation of the ce_losses
         ce_std = torch.sqrt(torch.sum(ce_losses_normalized ** 2, dim=1))
         # find the pearson correlation
-        correlation = cov / ((route_std * ce_std) + 1e-6)
-        self.stat = 1 + correlation.mean()
+        correlation = cov / ((route_std * ce_std) + 1e-8)
+        self.stat = 1 - correlation.mean()
 
         # # sort the losses from the lowest to the highest, and get the indices
         # _, indices = torch.sort(ce_losses, dim=1)

@@ -40,12 +40,18 @@ class RewardStrategy:
             return self._entropy
         elif self.reward_type == 'RegretBased':
             return self._regret_based_reward
+        elif self.reward_type == 'RegretBasedNew':
+            return self._regret_based_reward_new
         elif self.reward_type == 'Expertise':
             return self._new_expertise_reward
         elif self.reward_type == 'SpearmanCorrelation':
             return self._spearman_correlation_reward
-        else:
+        elif self.reward_type == 'CrossEntropyRouting':
+            return self._ce_routing_reward
+        elif self.reward_type == 'ProposalSpecializationAndConsistency':
             return self._proposal_specialization_and_consistency
+        else:
+            raise NotImplementedError(f'Reward {self.reward_type} Not Implemented')
 
     def _get_cross_entropy_loss_reward(self, sample, action, model):
         model.eval()
@@ -61,13 +67,20 @@ class RewardStrategy:
             out = model.get_unsupervised_output(x, routes=action)
         return out, y
 
-    def _get_routes_from_model(self, model, sample):
+    def _get_routes_from_model(self, model, sample, *, probs):
         model.eval()
         with torch.no_grad():
             x = sample[0].to(model.device)
             x = model.encoder(x)
             out = model.router(x)
-        return out
+        if repr(model.router) == "PPO Agent":
+            dist, values = out
+
+            routes = dist.probs if probs else values
+
+        else:
+            routes = torch.nn.functional.softmax(out, dim=1) if probs else out
+        return routes
 
     def _get_best_from_all_reward(self, sample, action, model):
         model.eval()
@@ -170,10 +183,36 @@ class RewardStrategy:
         acc = preds == y
         return acc * consistency[action, y] * specialization[action, y] / load[action]
 
+    def _get_C_matrix1(self, preds, routes, true_assignments):
+        one_hot_routes = torch.nn.functional.one_hot(routes).float().T
+        one_hot_labels = torch.nn.functional.one_hot(true_assignments).float()
+        oh_preds = torch.nn.functional.one_hot(preds, num_classes=self.num_of_classes)
+        consistency = one_hot_routes @ one_hot_labels # Cij = probability of expert i for class j
+        specialization = one_hot_routes @ (one_hot_labels * oh_preds)  # Sij = probability of expert i for class j and prediction j
+        specialization = specialization / torch.maximum(consistency, torch.ones(1).to(consistency.device))
+        consistency = consistency / torch.maximum(consistency.sum(axis=0, keepdims=True), torch.ones(1).to(consistency.device))
+        return consistency, specialization
+
+    def _specialization_and_consistency1(self, sample, action, model, out=None, y=None):
+        out, y = self._get_output_from_model(action, model, sample) if out is None else (out, y)
+        preds = torch.argmax(out, dim=1)
+        consistency, specialization = self._get_C_matrix(preds, action.detach(), y)
+        load = torch.FloatTensor(consistency.sum(axis=1)) / self.num_of_classes
+        acc = preds == y
+        # output_of_true_class = out[torch.arange(len(out)), y]
+        # rewards = [
+        # output_of_true_class[i] * consistency[action[i], y[i]] * specialization[action[i], y[i]] / load[action[i]]
+        # for i in range(len(acc))]
+        rewards = [acc[i] * consistency[action[i], y[i]] * specialization[action[i], y[i]] / load[action[i]] for i in
+                   range(len(acc))]
+        # rewards = [acc[i] * consistency[action[i], y[i]] * specialization[action[i],y[i]] * load_var for i in range(len(acc))]
+        rewards = torch.stack(rewards) if isinstance(rewards[0], torch.Tensor) else torch.FloatTensor(rewards)
+        rewards1 = self._specialization_and_consistency(sample,action,model)
+        # assert torch.equal(rewards1,rewards)
+        return rewards1
 
 
-
-    def _entropy(self, sample, action, model, out=None, y=None):
+    def _entropy(self, sample, action, model):
         action_count = torch.bincount(action, minlength=self.num_of_experts)
         action_probs = action_count / action_count.sum()
         entropy = -torch.sum(action_probs * torch.log2(action_probs + 1e-8))
@@ -190,21 +229,21 @@ class RewardStrategy:
         return rewards
 
     def _proposal_specialization_and_consistency_linear_assignment(self, sample, action, model, out=None, y=None):
-        routes = self._get_routes_from_model(model, sample)
+        routes = self._get_routes_from_model(model, sample, probs=False)
         action = self._linear_assignment(routes).type_as(action).to(action.device)
         return self._proposal_specialization_and_consistency(sample, action, model, out, y)
 
     def _regret_based_reward(self, sample, action, model, out=None, y=None, k=2):
         # This is appropriate only for actor critic methods
-        dist, values = self._get_routes_from_model(model, sample)
-        routes = dist.probs
-        topk = torch.topk(routes, k, dim=1)
-        max_probs, router_preds = torch.max(routes, dim=1)
+        k = min(k, self.num_of_experts)
+        routes_probs = self._get_routes_from_model(model, sample, probs=True)
+        topk = torch.topk(routes_probs, k, dim=1)
+        max_probs, router_preds = torch.max(routes_probs, dim=1)
         out, y = self._get_output_from_model(router_preds, model, sample) if out is None else (out, y)
         out = nn.functional.softmax(out, dim=1)
-        preds = torch.argmax(out, dim=1)
+        # preds = torch.argmax(out, dim=1)
 
-        current = max_probs * out[torch.arange(len(out)), y] # best_expert_prob * prob_of_right_class
+        current = max_probs * out[torch.arange(len(out)), y]  # best_expert_prob * prob_of_right_class
         out_all = [out]
         for i in range(1, k):
             out_i, _ = self._get_output_from_model(topk.indices[:, i], model, sample)
@@ -215,12 +254,41 @@ class RewardStrategy:
         best_pred, _ = torch.max(preds_on_right, dim=0)
         regret = best_pred - current
         return -1 * regret
-        # action_count = torch.bincount(action, minlength=self.num_of_experts)
-        # action_probs = action_count / action_count.sum()
-        # consistency, specialization = self._get_C_matrix(preds, action.detach(), y)
-        # load = torch.FloatTensor(consistency.sum(axis=1)) / self.num_of_classes
-        # entropy = -torch.sum(action_probs * torch.log2(action_probs + 1e-10)) / np.log2(self.num_of_experts)
-        # reward = entropy + (current - best_pred)
+
+    def _regret_based_reward_new(self, sample, action, model, k=2):
+        k = min(k, self.num_of_experts)
+        top_k_probs, top_k_routes = self._get_topk_route_probs(k, model, sample)
+        ce_losses = self._get_celosses_from_topk_experts(k, model, sample, top_k_routes)
+
+        # current_score =  E[P*Loss] = \sum_i P_i * Loss_i
+        top_k_probs = top_k_probs / top_k_probs.sum(dim=1, keepdim=True)
+        current_score = (top_k_probs * ce_losses).sum(dim=1)
+
+        best_loss, _ = ce_losses.min(dim=1)
+
+        regret = current_score - best_loss
+
+        assert all(regret >= -1e-6), f"Regret must be non-negative, but got {regret}"
+
+        return -1 * regret
+
+    def _get_topk_route_probs(self, k, model, sample):
+        route_probabilities = self._get_routes_from_model(model, sample, probs=True)
+        # get the top k routes
+        top_k_probs, top_k_routes = torch.topk(route_probabilities, k, dim=1)
+        return top_k_probs, top_k_routes
+
+    def _get_celosses_from_topk_experts(self, k, model, sample, top_k_routes):
+        x, labels = sample
+        x, labels = x.to(model.device), labels.to(model.device)
+        # get the cross entropy loss for the top k routes
+        ce_losses = []
+        for i in range(k):
+            logits_i = model.get_unsupervised_output(x, routes=top_k_routes[:, i])
+            ce_loss = torch.nn.functional.cross_entropy(logits_i, labels, reduction='none')
+            ce_losses.append(ce_loss)
+        ce_losses = torch.stack(ce_losses, dim=1).detach()
+        return ce_losses
 
     def _get_consistency(self, preds, routes, true_assignments):
         consistency = np.zeros((self.num_of_experts, self.num_of_classes))
@@ -232,13 +300,24 @@ class RewardStrategy:
         return 1 - normalized_entropy
 
     def _get_C_matrix(self, preds, routes, true_assignments):
-        one_hot_routes = torch.nn.functional.one_hot(routes).float().T
-        one_hot_labels = torch.nn.functional.one_hot(true_assignments).float()
-        oh_preds = torch.nn.functional.one_hot(preds)
-        consistency =  one_hot_routes @ one_hot_labels
+        one_hot_routes = torch.nn.functional.one_hot(routes, num_classes=self.num_of_experts).float().T
+        one_hot_labels = torch.nn.functional.one_hot(true_assignments, self.num_of_classes).float()
+        oh_preds = torch.nn.functional.one_hot(preds, num_classes=self.num_of_classes)
+        consistency = one_hot_routes @ one_hot_labels
         specialization = one_hot_routes @ (one_hot_labels * oh_preds)
         specialization = specialization / torch.maximum(consistency, torch.ones(1).to(consistency.device))
-        consistency = specialization / torch.maximum(consistency, torch.ones(1).to(consistency.device))
+        consistency = consistency / torch.maximum(consistency.sum(axis=0, keepdims=True), torch.ones(1).to(consistency.device))
+        return consistency, specialization
+
+    def _get_C_matrix1(self, preds, routes, true_assignments):
+        specialization = np.zeros((self.num_of_experts, self.num_of_classes))
+        consistency = np.zeros((self.num_of_experts, self.num_of_classes))
+        for i in range(len(preds)):
+            specialization[routes[i], true_assignments[i]] += int(true_assignments[i] == preds[i])
+            consistency[routes[i], true_assignments[i]] += 1
+
+        specialization = specialization / np.maximum(consistency, 1)  #
+        consistency = consistency / np.maximum(consistency.sum(axis=0, keepdims=True), 1)
         return consistency, specialization
 
     # A: Aij = class j goes to expert i
@@ -264,23 +343,23 @@ class RewardStrategy:
         rewards = torch.stack(rewards) if isinstance(rewards[0], torch.Tensor) else torch.FloatTensor(rewards)
         return rewards
 
-    def _spearman_correlation_reward(self, sample, action, model, out=None, y=None, k=3):
+    def _spearman_correlation_reward(self, sample, action, model, k=3):
         k = min(k, self.num_of_experts)
+        _, top_k_routes = self._get_topk_route_probs(k, model, sample)
+        ce_losses = self._get_celosses_from_topk_experts(k, model, sample, top_k_routes)
         batch_size = action.shape[0]
-        routes = self._get_routes_from_model(model, sample)
-        _, topk_routes = torch.topk(routes, k, dim=1)
-        # get output from topk models
-        out_all = [self._get_output_from_model(topk_routes[:, 0], model, sample)[0]]
-        for i in range(1, k):
-            out_i, _ = self._get_output_from_model(topk_routes[:, i], model, sample)
-            out_all.append(out_i)
-        # loss of the topk models
-        loss_all = [self.cf_entropy(out, sample[1].to(out.device)) for out in out_all]
-        loss_all = torch.stack(loss_all).T
-        # get topk by loss
-        _, topk_by_loss = torch.topk(loss_all, k, dim=1, largest=False)
-        spearman_corr = spearmanr(topk_routes.cpu().numpy(), topk_by_loss.cpu().numpy(), axis=1)
-        return torch.FloatTensor(spearman_corr.correlation[torch.arange(0,batch_size), torch.arange(batch_size, batch_size * 2)])
+        _, top_k_by_loss = torch.topk(ce_losses, k, dim=1, largest=False)
+        spearman_corr = spearmanr(top_k_routes.cpu().numpy(), top_k_by_loss.cpu().numpy(), axis=1)
+        return torch.FloatTensor(
+            spearman_corr.correlation[torch.arange(0, batch_size), torch.arange(batch_size, batch_size * 2)])
+
+    def _ce_routing_reward(self, sample, action, model, k=2):
+        k = min(k, self.num_of_experts)
+        routes = self._get_routes_from_model(model, sample, probs=False)
+        top_k_probs, top_k_routes = self._get_topk_route_probs(k, model, sample)
+        ce_losses = self._get_celosses_from_topk_experts(k, model, sample, top_k_routes)
+        ce_losses_argmin = torch.argmin(ce_losses, dim=1)
+        return -1 * self.cf_entropy(routes, ce_losses_argmin)
 
 # -CE * max(0.5, p)
 # -CE * p   (p = probability of expert)
@@ -294,5 +373,3 @@ class RewardStrategy:
 
 # check different alphas in tanh
 # what about remove the replay buffer and just use the current batch?
-import time
-time.time()

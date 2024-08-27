@@ -16,12 +16,13 @@ class MixtureOfExperts(nn.Module):
         self.train_set = train_set
         self.input_shape = train_set.get_input_shape()
         self.alternate = model_config.get('alternate', 0)
+        self.num_backbone_experts = model_config.get('num_backbone_experts', 0)
         self.num_experts = model_config['num_experts']
         self.k = model_config.get('k', 1)
         self.output_shape = output_size
         self.input_shape_router = model_config.get('input_shape_router', self.input_shape)
         self.experts = nn.ModuleList(
-            [utils.get_model(model_config['expert'], train_set=train_set) for _ in range(self.num_experts)])
+            [utils.get_model(model_config['expert'], train_set=train_set) for _ in range(self.num_experts+ self.num_backbone_experts)])
 
         self.unsupervised_router = not model_config['router']['supervised']
         self.router_config = model_config['router']
@@ -38,6 +39,10 @@ class MixtureOfExperts(nn.Module):
         self.encoder = utils.get_model(model_config['encoder'],
                                        output_shape=self.input_shape_router) if model_config.get('encoder',
                                                                                                  False) else nn.Identity()
+        self.initial_routing_phase = True
+        # self.experts.load_state_dict(torch.load('/home/dsi/buznahy/moe_project/experts.pkl')['experts'])
+        # self.router.load_state_dict(torch.load('/home/dsi/buznahy/moe_project/router.pkl')['router'])
+
 
     def to(self, device):
         self.experts.to(device)
@@ -97,9 +102,13 @@ class MixtureOfExperts(nn.Module):
         # get the routing probabilities
         routes_logits = self.supervised_router_step(x)
         routes_probs = self.router_softmax(routes_logits)
-        routes = self.assignment_function(routes_logits)
+        router_probs_max = torch.max(routes_probs, dim=1).values
+        if self.initial_routing_phase:
+            routes = torch.randint(0,self.num_experts, size=[x.shape[0]])
+        else:
+            routes = self.assignment_function(routes_logits)
 
-        # get the indexes of the samples for each expert
+            # get the indexes of the samples for each expert
         indexes_list = self.get_indexes_list(routes)
 
         # get the counts of the samples for each expert
@@ -107,7 +116,12 @@ class MixtureOfExperts(nn.Module):
 
         # get the output of the experts
         logits = self.get_experts_logits_from_indexes_list(indexes_list, x)
-        # logits = logits * (router_probs_max / router_probs_max.detach()).view(-1, 1)
+
+        if self.num_backbone_experts > 0:
+            for i, expert in enumerate(self.experts[-self.num_backbone_experts:]):
+                logits += expert(x)
+            # logits = logits + self.experts[:-self.num_backbone_experts](x)
+        logits = logits * (router_probs_max / router_probs_max.detach()).view(-1, 1)
 
         return {'output': self.softmax(logits), 'logits': logits, 'router_probs': routes_probs, 'counts': counts,
                 'routes': routes}

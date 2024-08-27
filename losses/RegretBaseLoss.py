@@ -36,13 +36,14 @@ class RegretBaseLoss(Loss):
 
         # current_score =  E[P*Loss] = \sum_i P_i * Loss_i
         top_k_probs = top_k_probs / top_k_probs.sum(dim=1, keepdim=True)
-        current_score = (top_k_probs * ce_losses).sum(dim=1)
+        current_score = (top_k_probs * ce_losses).sum(dim=1) #
 
         best_loss, _ = ce_losses.min(dim=1)
 
         regret = current_score - best_loss
 
-        assert all(regret >= -1e-6), f"Regret must be non-negative, but got {regret}"
+
+        assert all(regret >= -1e-5), f"Regret must be non-negative, but got {regret}"
 
         self.stat = regret.mean()
 

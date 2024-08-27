@@ -1,7 +1,12 @@
+#!/usr/bin/env python3
+
 import pickle
 import traceback
 from itertools import product
 from pprint import pformat
+
+from datasets import load_dataset
+
 import wandb
 
 from logger import Logger #, init_logger
@@ -9,6 +14,8 @@ from logger import Logger #, init_logger
 #     init_logger()
 from experiment import Experiment
 from parameters_parser import parse_args
+# Load model directly
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
 
 def run_experiment(config):
@@ -35,7 +42,6 @@ def main():
         for k, v in nested_dict.items():
             if k == key_name:
                 if isinstance(v, dict):
-                    # next_key = list(key[k].keys())[0]
                     set_value_by_key_from_nested_dict(v, key[key_name], value)
                 else:
                     nested_dict[k] = value
@@ -43,6 +49,8 @@ def main():
 
 
     if 'changes' in config:
+        # change the order so it will
+        config['changes'].reverse()
         # Generate all combinations of options for each change
         options_product = product(*(change['options'] for change in config['changes']))
 
@@ -54,14 +62,14 @@ def main():
 
             # Initialize wandb if project name is provided
             if wandb_project_name is not None:
-                wandb.init(project=wandb_project_name, config=config)
+                #wandb.debug = True
+                run = wandb.init(project=wandb_project_name, config=config)
+                run.log_code(include_fn=lambda path: path.endswith(".py") or path.endswith(".yml"))
+                
             #
             # Run the experiment with the current configuration
             run_experiment(config)
-            # print(config['scheduler'])
-            # print(config['model']['loss']['MixtureOfExpertLoss'])
-            # print()
-
+            # print(config)
     else:
         if wandb_project_name is not None:
             wandb.init(project=wandb_project_name, config=config)
@@ -70,3 +78,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
