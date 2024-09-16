@@ -3,7 +3,8 @@ from argparse import Namespace
 import numpy as np
 import pandas as pd
 import torch
-from scipy.stats import chi2_contingency, entropy
+from numpy import dtype
+from scipy.stats import chi2_contingency, entropy, spearmanr
 from sklearn.metrics import confusion_matrix
 
 from logger import Logger
@@ -19,6 +20,7 @@ class MoEMetricPreprocessor(Metric, metaclass=SingletonMeta):
         self.reset()
 
     def reset(self):
+        self.model = None
         self.gates = torch.tensor([], dtype=torch.long)
         self.model_index = torch.tensor([], dtype=torch.long)
         self.model_output_class = torch.tensor([], dtype=torch.long)
@@ -29,52 +31,51 @@ class MoEMetricPreprocessor(Metric, metaclass=SingletonMeta):
         self.num_experts = 0
         self.class_names = []
         self.super_classes_names = []
+        self.route_probs = torch.tensor([], dtype=torch.float)
+        self.input = torch.tensor([], dtype=torch.float)
 
     def __call__(self, *args, **kwargs):
-        y_pred, y_true, routes, counts, model, x, sc = self._parse_args(*args, **kwargs)
-        random_routes = torch.randint(0, model.num_experts, (x.shape[0],), device=model.device)
+        y_pred, y_true, routes, counts, model, x, sc, route_probs = self._parse_args(*args, **kwargs)
+        self.num_experts = model.num_experts
+        random_routes = (routes + 1) % self.num_experts  # torch.randint(0, model.num_experts, (x.shape[0],), device=model.device)
         random_outputs = model.get_experts_logits_from_indexes_list(model.get_indexes_list(random_routes),
-                                                                    model.encoder(x)).argmax(
-            dim=-1).cpu()
+                                                                    model.encoder(x)).argmax(dim=-1).cpu()
+        self.route_probs = torch.cat((self.route_probs, route_probs), dim=0) if route_probs is not None else None
         self.gates = torch.cat((self.gates, routes), dim=0)
         self.model_index = torch.cat((self.model_index, routes), dim=0)
         self.correct = torch.cat((self.correct, (y_pred == y_true).long()), dim=0)
         self.random_correct = torch.cat((self.random_correct, (random_outputs == y_true).long()), dim=0)
         self.model_output_class = torch.cat((self.model_output_class, y_pred), dim=0)
         self.labels = torch.cat((self.labels, y_true), dim=0)
-        if sc is not None:
-            self.super_classes = torch.cat((self.super_classes, sc), dim=0)
-        self.num_experts = model.num_experts
+        self.input = torch.cat((self.input, x.cpu()), dim=0)
+        self.super_classes = torch.cat((self.super_classes, sc), dim=0) if sc is not None else None
         self.class_names = model.train_set.classes
         self.super_classes_names = model.train_set.superclasses
+        self.model = model
 
     def _parse_args(self, *args, **kwargs):
         y_pred = self._get_attribute_from_args(self.possible_y_pred, **kwargs).argmax(dim=-1)
         y_true = self._get_attribute_from_args(self.possible_y_true, **kwargs)
         counts = self._get_attribute_from_args(self.possible_counts, **kwargs)
-        model = self._get_attribute_from_args(self.possible_model, **kwargs)
-        x = self._get_attribute_from_args(self.possible_x, **kwargs)
+        model = self._get_attribute_from_args(self.possible_model, to_cpu=False, **kwargs)
+        x = self._get_attribute_from_args(self.possible_x, to_cpu=False, **kwargs)
         routes = self._get_routes(**kwargs)
-        super_classes = self._get_super_classes(**kwargs)
-        return y_pred.cpu(), y_true.cpu(), routes.cpu(), counts.cpu(), model, x, super_classes.cpu()
+        super_classes = self._get_attribute_from_args(self.possible_super_classes, **kwargs)
+        route_probs = self._get_attribute_from_args(self.possible_routes_probs, **kwargs)
+        return y_pred, y_true, routes, counts, model, x, super_classes, route_probs
 
-    def _get_attribute_from_args(self, possible_args, **kwargs):
+    def _get_attribute_from_args(self, possible_args, to_cpu=True, **kwargs):
         for possible_args in possible_args:
             if possible_args in kwargs.keys():
-                return kwargs[possible_args]
-        raise StopIteration
+                args = kwargs[possible_args]
+                return args.cpu() if to_cpu else args
+        return None
 
-    def _get_super_classes(self, **kwargs):
+    def _get_routes(self, to_cpu=True, **kwargs):
         try:
-            return self._get_attribute_from_args(self.possible_super_classes, **kwargs)
+            return self._get_attribute_from_args(self.possible_routes, to_cpu, **kwargs)
         except StopIteration:
-            return None
-
-    def _get_routes(self, **kwargs):
-        try:
-            return self._get_attribute_from_args(self.possible_routes, **kwargs)
-        except StopIteration:
-            return self._get_attribute_from_args(self.possible_routes_probs, **kwargs).argmax(dim=-1)
+            return self._get_attribute_from_args(self.possible_routes_probs, to_cpu, **kwargs).argmax(dim=-1)
 
 
 class MOEMetric(Metric, metaclass=SingletonMeta):
@@ -128,6 +129,18 @@ class MOEMetric(Metric, metaclass=SingletonMeta):
     @property
     def super_classes_names(self):
         return self.moe_preprocessor.super_classes_names
+
+    @property
+    def route_probs(self):
+        return self.moe_preprocessor.route_probs
+
+    @property
+    def model(self):
+        return self.moe_preprocessor.model
+
+    @property
+    def input(self):
+        return self.moe_preprocessor.input
 
 
 class RouterVSRandomAcc(MOEMetric):
@@ -283,7 +296,65 @@ class DeadExperts(MOEMetric):
 
     @staticmethod
     def compute_manual(*, gates):
-        x = 4
+        return gates.unique().shape[0]
+
+
+class AccuracyDiff(MOEMetric):
+    def compute(self):
+        """
+        Check the Accuracy difference between the routed experts and random experts
+        """
+        diff = self.correct.mean(dtype=float) - self.random_correct.mean(dtype=float)
+        return diff.item()
+
+
+class SpearmanCorrelation(MOEMetric):
+
+    def get_logits(self, input_batches, route_indices_batches, i):
+        logits = []
+        for x, routes in zip(input_batches, route_indices_batches):
+            x = x.to(self.model.device)
+            logits.append(self.model.get_unsupervised_output(x, routes=torch.zeros_like(routes[:, 0]) + i))
+        return torch.cat(logits)
+
+    def compute(self):
+        if self.route_probs is None:
+            return -1
+        route_probabilities_sorted, route_indices = torch.sort(self.route_probs, dim=1, descending=True)
+        route_indices = self.route_probs.argsort(dim=1, descending=True)
+        # route_probabilities_sorted = route_probabilities_sorted[:, :self.num_experts]
+        input_batches = torch.split(self.input, 1000)
+        route_indices_batches = torch.split(route_indices, 1000)
+        # get the cross entropy loss for the top k routes
+        ce_losses = []
+        with torch.no_grad():
+            for i in range(self.num_experts):
+                # eval by batches
+                logits_i = self.get_logits(input_batches, route_indices_batches, i)
+                ce_loss = torch.nn.functional.cross_entropy(logits_i, self.labels.to(self.model.device),
+                                                            reduction='none')
+                ce_losses.append(ce_loss)
+            ce_losses = torch.stack(ce_losses, dim=1)
+
+        # calculate the spearman correlation between the route probabilities and the cross entropy losses
+        ce_losses_rank = ce_losses.argsort(dim=1).cpu()
+        return self._compute_spearman_correlation(ce_losses_rank, route_indices)
+
+    def _compute_spearman_correlation(self, a, b):
+        import numpy as np
+
+        # Compute the differences between ranks
+        d = a - b
+
+        # Compute the squared differences
+        d_squared = np.square(d)
+
+        # Compute the Spearman correlation using the formula
+        n = a.shape[1]
+        spearman_correlations = 1 - (6 * torch.sum(d_squared, dim=1)) / (n * (n ** 2 - 1))
+
+        # Compute the mean Spearman correlation
+        return round(torch.mean(spearman_correlations).item(), 5)
 
 
 if __name__ == '__main__':

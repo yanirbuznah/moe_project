@@ -85,11 +85,18 @@ class CustomDataset(Dataset):
 
     def get_random_mini_batch_after_transform(self, batch_size):
         indices = random.sample(range(0, len(self.data)), batch_size)
+        return self.get_mini_batch_after_transform_by_indices(indices)
+
+    def get_mini_batch_after_transform_by_indices(self, indices):
         tmp = [self[i] for i in indices]
         X, y, _ = zip(*tmp)
         X = torch.stack(X)
         y = torch.LongTensor(y)
         return (X, y)
+
+    def get_mini_batch_after_transform_by_interval(self,*, end, start=0):
+        indices = range(start, end)
+        return self.get_mini_batch_after_transform_by_indices(indices)
 
     def get_random_sample_by_class(self, class_name):
         class_index = self.classes.index(class_name)
@@ -107,5 +114,6 @@ class CustomDataset(Dataset):
 
     def get_input_shape(self):
         return self.get_random_sample_after_transform().shape
+
     def get_number_of_classes(self):
         return len(self.classes)

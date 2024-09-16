@@ -7,16 +7,11 @@ changes:
           MixtureOfExpertLoss:
             losses
     options:
-      - - !include loss_configs/cross_entropy_loss_config.yml
-        - !include loss_configs/consistency_loss_config.yml
-#        - RegretBaseLoss:
-#            name: RegretBaseLoss
-#            type: RegretBaseLoss
-#            params:
-#              k: 5
-#              detach_experts_grad: true
-        - !include loss_configs/switch_load_balancing_loss_config.yml
-#      - - !include loss_configs/hinge_balancing_loss_config.yml
+#      - - !include loss_configs/cross_entropy_loss_config.yml
+#        - !include loss_configs/consistency_loss_config.yml
+      - - !include loss_configs/cross_entropy_routing_loss_config.yml
+#        - !include loss_configs/hinge_balancing_loss_config.yml
+#        - !include loss_configs/hinge_balancing_loss_config.yml
 #      - - !include loss_configs/cross_entropy_loss_config.yml
 #        - RegretBaseLoss:
 #            name: RegretBaseLoss
@@ -76,21 +71,21 @@ changes:
       - false
 #      - true
 
-  - key:
-      model:
-        model:
-          router:
-            action_assignment_strategy
-    options:
-      - none
-#      - LinearAssignmentWithCapacity
-#      - LinearAssignmentByDiff
-#      - BaseLinearAssignment
+#  - key:
+#      model:
+#        model:
+#          router:
+#            action_assignment_strategy
+#    options:
+#      - none
+##      - LinearAssignmentWithCapacity
+##      - LinearAssignmentByDiff
+##      - BaseLinearAssignment
   - key:
       model:
         model:
           alternate
     options:
-#      - 0
-      - 2
+      - 0
+#      - 2
 #      - 5

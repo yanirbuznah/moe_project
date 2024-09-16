@@ -1,21 +1,26 @@
 import logging
+from collections import namedtuple
+
+import numpy as np
 
 from .utils import *
 
 
 class Model(nn.Module):
-    def __init__(self, config: dict, train_set=None):
+    def __init__(self, config: dict, test_loader=None, train_loader = None):
         super().__init__()
         self.config = config
         model_config: dict = config.get('model')
         logging.info(f'Creating model {model_config.get("name")}')
-        self.model = get_model(model_config, train_set=train_set)
+        self.train_loader = train_loader
+        self.test_loader = test_loader
+        self.model = get_model(model_config, train_set=train_loader.dataset)
         self.optimizer = get_optimizer(self.model, model_config.get('optimizer'), model_config.get('lr'))
         self.criterion = get_loss(model_config.get('loss'))
         self.criterion.model = self.model
-        self.metrics = get_metrics(config.get('metrics'), train_set.get_number_of_classes())
-        self.train_set = train_set
+        self.metrics = get_metrics(config.get('metrics'), train_loader.dataset.get_number_of_classes())
         self.alternate = self.model.alternate if hasattr(self.model, 'alternate') else False
+        self.router_assignments = []
 
     def to(self, device):
         self.model.to(device)
@@ -27,12 +32,12 @@ class Model(nn.Module):
         return next(self.parameters()).device
 
     @property
-    def train_set(self):
-        return self._train_set
+    def test_set(self):
+        return self._test_set
 
-    @train_set.setter
-    def train_set(self, value):
-        self._train_set = value
+    @test_set.setter
+    def test_set(self, value):
+        self._test_set = value
 
     def forward(self, x):
         return self.model(x)
@@ -58,7 +63,7 @@ class Model(nn.Module):
         x, y = x.to(self.device), y.to(self.device)
         output = self.forward(x)
         if isinstance(output, torch.Tensor):
-            output = {'output': output, 'logits':output}
+            output = {'output': output, 'logits': output}
 
         kwargs = output.copy()
         kwargs['target'] = y
@@ -88,3 +93,23 @@ class Model(nn.Module):
 
     def alternate_training_modules(self, router_phase):
         self.model.alternate_training_modules(router_phase)
+
+    def router_accumulator(self):
+        def calculate_entropy(tosses):
+            counts = np.unique(tosses, return_counts=True)[1]
+            probabilities = counts / len(tosses)
+            return -np.sum(probabilities * np.log2(probabilities))
+
+        if self.test_loader:
+            batch = next(iter(self.test_loader))
+            routes = self.model.router(batch[0].to(self.device)).argmax(dim=1).cpu()
+            self.router_assignments.append(routes)
+            if len(self.router_assignments) > 10:
+                self.router_assignments.pop(0)
+            # calc entropy of each raw
+            if len(self.router_assignments) > 1:
+                assignments = np.array(self.router_assignments)
+                entropy_per_sample = np.apply_along_axis(calculate_entropy, 0, assignments)
+                return namedtuple("entropy", ["stats", "mean", "std"])(entropy_per_sample, np.mean(entropy_per_sample),
+                                                                       np.std(entropy_per_sample))
+            return None

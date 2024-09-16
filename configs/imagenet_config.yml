@@ -1,5 +1,5 @@
 log:
-  wandb_project_name: null #pretrained_experts_experiment # hingeLoss_combinations_losses1 #DeepSeek_regret_based_cifar10_parameters_search # linear_balancing_resnet_cifar10_experiment_detached_experts
+  wandb_project_name: consistency_loss # hingeLoss_combinations_losses1 #DeepSeek_regret_based_cifar10_parameters_search # linear_balancing_resnet_cifar10_experiment_detached_experts
   experiment_name: dummy_experiment
   experiment_description: dummy_description
 
@@ -7,8 +7,7 @@ log:
 dataloader: !include dataloader_configs/cifar100_dataloader_config.yml
 scheduler: true
 model:
-#  model: !include model_configs/resnet18_model_config.yml
-  model: !include model_configs/resnet18_and_rl_combined_model_config.yml
+  model: !include model_configs/resnet18_model_config.yml
   loss: !include loss_configs/moe_loss_config.yml
   optimizer: Adam
   lr: !!float 0.001
@@ -23,12 +22,11 @@ metrics:
 #    - Precision
 #    - Recall
 #    - pvalue
-    - RouterVsRandomAcc
+#    - RouterVsRandomAcc
 #    - ExpertEntropy
     - Consistency
     - Specialization
     - DeadExperts
-    - AccuracyDiff
 
 #    - NewSpecialization
 seed: 0

@@ -36,10 +36,10 @@ class Experiment:
         self.test_loader = data.DataLoader(self.test_set, batch_size=config['dataloader']['batch_size'], shuffle=False,
                                            num_workers=config['dataloader']['num_workers'])
 
-        self.classes = self.train_set.classes
-        dummy_sample = self.train_set.get_random_sample_after_transform()
+        self.classes = self.test_set.classes
+        # dummy_sample = self.test_set.get_mini_batch_after_transform_by_interval(32)
 
-        self.model = Model(config, self.train_set).to(utils.device)
+        self.model = Model(config, train_loader=self.train_loader, test_loader=self.test_loader).to(utils.device)
         # self.model.reset_parameters(dummy_sample.view(1, *dummy_sample.shape).to(utils.device))
         self._init_experiment_folder()
         self.scheduler = torch.optim.lr_scheduler.StepLR(self.model.optimizer, step_size=20, gamma=0.5) if config.get(
@@ -69,7 +69,7 @@ class Experiment:
             validate_evaluate_results = self.evaluate_and_save_results(epoch, mode='test', model=self.model)
             logger.info(f"Train: {train_evaluate_results}")
             logger.info(f"Validate: {validate_evaluate_results}")
-        utils.run_train_epoch(self.model, self.train_loader, self.scheduler)
+        # utils.run_train_epoch(self.model, self.train_loader, self.scheduler)
         if wandb.run:
             wandb.watch(self.model.model)
         self.model.model.train_router(epoch)
@@ -130,44 +130,54 @@ class Experiment:
         if self.model.alternate:
             router_phase = epoch % self.model.alternate == 0 and epoch != 0
             self.model.alternate_training_modules(router_phase)
+        # self.model.alternate_training_modules(router_phase=True)
         # else:
         #     self.model.alternate_training_modules(False)
         #     self.model.model.initial_routing_phase = True
         # self.model.alternate_training_modules(True)
-        if epoch == 0:
-            train_evaluate_results = self.evaluate_and_save_results(epoch, mode='train', model=self.model)
-            validate_evaluate_results = self.evaluate_and_save_results(epoch, mode='test', model=self.model)
-            logger.info(f"Train: {train_evaluate_results}")
-            logger.info(f"Validate: {validate_evaluate_results}")
-            if wandb.run:
-                wandb.log({'train': train_evaluate_results, 'validate': validate_evaluate_results})
+        # if epoch == 0:
+        #     train_evaluate_results = self.evaluate_and_save_results(epoch, mode='train', model=self.model)
+        #     validate_evaluate_results = self.evaluate_and_save_results(epoch, mode='test', model=self.model)
+        #     logger.info(f"Train: {train_evaluate_results}")
+        #     logger.info(f"Validate: {validate_evaluate_results}")
+        #     if wandb.run:
+        #         wandb.log({'train': train_evaluate_results, 'validate': validate_evaluate_results})
         utils.run_train_epoch(self.model, self.train_loader, self.scheduler)
         train_evaluate_results = self.evaluate_and_save_results(epoch + 1, mode='train', model=self.model)
         validate_evaluate_results = self.evaluate_and_save_results(epoch + 1, mode='test', model=self.model)
         logger.info(f"Train: {train_evaluate_results}")
         logger.info(f"Validate: {validate_evaluate_results}")
-
+        if wandb.run:
+            wandb.watch(self.model.model)
         return train_evaluate_results, validate_evaluate_results
 
     def run(self):
         model = self.model.model
+        # model.router = model.routers[0]
         early_stopping = EarlyStopping(tolerance=10, min_delta=1.)
-        best_loss = float('inf')
+        best_acc = 0 # float('inf')
         # if isinstance(model, MixtureOfExperts):
         #     for e in model.experts:
         #         e.load_state_dict(torch.load('experiments/baseline_2024-08-20_19-11-25/model.pt'))
         for epoch in range(self.model.config['epochs']):
+            while model.current_router_config['epochs'][1] <= epoch:
+                model.change_router(model.current_router + 1)
             logger.info(f"Epoch {epoch}")
             if isinstance(model, MixtureOfExperts):
                 rl_router = model.unsupervised_router
-                if rl_router and self.model.model.router_config['epochs']:
+                if rl_router:
                     train_results, validate_results = self.run_rl_combined_model(epoch)
                 else:
                     train_results, validate_results = self.run_normal_model(epoch)
-                if not self.model.model.router_config.get('epochs')[0] <= epoch <= \
-                       self.model.model.router_config.get('epochs')[1]:
-                    # change router
-                    pass
+                routing_entropy = self.model.router_accumulator()
+                if routing_entropy is not None:
+                    np.set_printoptions(threshold=routing_entropy.stats
+                                        .shape[0])
+                    print(f"Routing Entropy: {routing_entropy}")
+                # if not self.model.model.router_config.get('epochs')[0] <= epoch <= \
+                #        self.model.model.router_config.get('epochs')[1]:
+                #     # change router
+                #     pass
             else:
                 train_results, validate_results = self.run_normal_model(epoch)
             if wandb.run:
@@ -186,11 +196,11 @@ class Experiment:
                     )
                     break
 
-            # if validate_results['total_loss'] <  best_loss:
-            #     best_loss = validate_results['total_loss']
-            #     model_pickle_path = os.path.join(self.experiment_path, 'model.pt')
-            #     torch.save(model.state_dict(), model_pickle_path)
-            #     print(f"model saved to {model_pickle_path}")
+            if validate_results['Accuracy'] >  best_acc:
+                best_acc = validate_results['Accuracy']
+                model_pickle_path = os.path.join(self.experiment_path, 'model.pt')
+                torch.save(model.state_dict(), model_pickle_path)
+                print(f"model saved to {model_pickle_path}")
             # early_stopping(train_results['total_loss'], validate_results['total_loss'])
             # if early_stopping.early_stop:
             #     early_stopping(train_results['total_loss'], validate_results['total_loss'])

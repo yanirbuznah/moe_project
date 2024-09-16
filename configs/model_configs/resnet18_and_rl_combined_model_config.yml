@@ -1,0 +1,23 @@
+type: moe
+
+router:
+    -
+        type: resnet
+        action_assignment_strategy: LinearAssignmentByDiff
+        model_config: !include router_configs/resnet_18_router_config.yml
+        epochs: [ 0, 2 ]
+        supervised: true
+    -
+        type: rl
+        model_config: !include router_configs/ddqn_config.yml
+        epochs: [ 2, 4]
+        supervised: false
+
+
+#encoder: !include expert_configs/resnet18_expert_config.yml
+input_shape_router: 100
+expert: !include expert_configs/resnet18_expert_config.yml
+num_experts: 2
+num_backbone_experts: 0
+k: 1
+alternate: 2

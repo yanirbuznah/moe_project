@@ -12,7 +12,7 @@ logger = Logger().logger(__name__)
 
 
 class CustomEnv(gym.Env):
-    def __init__(self, model: MixtureOfExperts):
+    def __init__(self, model: MixtureOfExperts, config):
         self.action_space = gym.spaces.Discrete(model.num_experts)
         self.observation_space = gym.spaces.Box(low=-np.inf, high=np.inf, shape=model.input_shape, dtype=np.float32)
         self.num_of_experts = model.num_experts
@@ -22,10 +22,10 @@ class CustomEnv(gym.Env):
         self.sample = (0, 0, 0)
         self.last_actions = torch.zeros((100, self.num_of_experts))
         self.cf_entropy = nn.CrossEntropyLoss(reduction='none')
-        self.reward_function = RewardStrategy(model.router_config['model_config']['reward_function'], model.num_experts,
+        self.reward_function = RewardStrategy(config['reward_function'], model.num_experts,
                                               model.output_shape).get_reward_function()
         logger.info(self.reward_function)
-        self.batch_size = model.router_config['model_config']['batch_size']
+        self.batch_size = config['batch_size']
 
     def step(self, action):
         reward = self.reward_function(self.sample, action, self.model)

@@ -12,10 +12,10 @@ from models.MLP import MLP
 from models.MOE import MixtureOfExperts
 
 
-def get_agent(model: MixtureOfExperts):
-    router_type = model.router_config['model_config']['model']
+def get_agent(model: MixtureOfExperts, config:dict):
+    router_type = config['model']
     if router_type.lower() == 'dqn':
-        router = dqn.Agent(model)
+        router = dqn.Agent(model, config)
     elif router_type.lower() == 'ppo':
         router = ppo.Agent(model)
     else:
@@ -23,11 +23,11 @@ def get_agent(model: MixtureOfExperts):
     return router
 
 
-def get_router(model: MixtureOfExperts):
-    if 'rl' in model.router_config['type'].lower():
-        return get_agent(model)
+def get_router(model: MixtureOfExperts,config:dict):
+    if 'rl' in config['type'].lower():
+        return get_agent(model, config['model_config'])
     else:
-        return get_model(model.router_config['model_config'], output_shape=model.num_experts)
+        return get_model(config['model_config'], output_shape=model.num_experts)
 
 
 def get_output_shape(train_set=None, output_shape=None):
@@ -36,7 +36,7 @@ def get_output_shape(train_set=None, output_shape=None):
     elif output_shape is not None:
         return output_shape
     else:
-        raise ValueError("Either train_set or output_shape must be provided")
+        raise ValueError("Either test_set or output_shape must be provided")
 
 
 def get_model(config: dict, *, train_set=None, output_shape=None):

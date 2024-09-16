@@ -1,4 +1,5 @@
 import random
+from collections import OrderedDict
 
 import numpy as np
 import torch
@@ -16,17 +17,29 @@ from utils.assignment_utils import action_assignment_strategy
 class DQN(nn.Module):
     def __init__(self, state_dim, action_dim, hidden_dim, backbone):
         super(DQN, self).__init__()
+        self.model = nn.Sequential(
+            backbone,
+            nn.Flatten(),
+            nn.LazyLinear(hidden_dim),
+            nn.ReLU(),
+            nn.LazyLinear(action_dim),
+        )
         self.backbone = backbone
         self.fc1 = nn.LazyLinear(hidden_dim)
         self.fc2 = nn.LazyLinear(action_dim)
 
     def forward(self, x):
-        x = self.backbone(x)
-        x = x.view(x.size(0), -1)
-        x = self.fc1(x)
-        x = torch.relu(x)
-        x = self.fc2(x)
-        return x
+        return self.model(x)
+        # x = self.backbone(x)
+        # x = x.view(x.size(0), -1)
+        # x = self.fc1(x)
+        # x = torch.relu(x)
+        # x = self.fc2(x)
+        # return x
+
+    def change_model(self,model):
+        self.model = model
+        return self
 
 
 class ReplayBuffer:
@@ -85,11 +98,11 @@ class ReplayBuffer:
 
 class Agent:
 
-    def __init__(self, model: MixtureOfExperts):
+    def __init__(self, model: MixtureOfExperts, config: dict):
         self.model = model
-        self.config = model.router_config['model_config']
+        self.config = config
         backbone = self._get_backbone()
-        self.env = CustomEnv(model)
+        self.env = CustomEnv(model, config)
         self.state_dim = torch.prod(torch.tensor(self.env.observation_space.shape)).item()
         self.action_dim = self.env.action_space.n
         self.hidden_dim = self.config.get('hidden_dim', 128)
@@ -102,6 +115,7 @@ class Agent:
         self.epsilon_decay = self.config.get('epsilon_decay', 0.999)
         self.epsilon_min = self.config.get('epsilon_min', 0.01)
         self.q_net = DQN(self.state_dim, self.action_dim, self.hidden_dim, backbone).to(model.device)
+        self.q_net.model = ut.get_model(self.config.get('backbone', None), output_shape=self.action_dim)
         # self.target_net = DQN(self.state_dim, self.action_dim, self.hidden_dim, backbone).to(model.device)
         # self.target_net.load_state_dict(self.q_net.state_dict())
         self.memory = ReplayBuffer(self.buffer_capacity)
@@ -109,6 +123,9 @@ class Agent:
         self.action_assignment_name = self.config.get('action_assignment_strategy', None)
         self.action_assignment = action_assignment_strategy(self.action_assignment_name)
         self.reward_function_name = self.config['reward_function']
+        x = torch.load('/home/dsi/buznahy/moe_project/experiments/dummy_experiment_2024-09-06_15-37-11/model.pt')
+        x1 = OrderedDict({k.split('.', 1)[-1]: v for k, v in x.items() if k[:6] == 'router'})
+        self.q_net.model.load_state_dict(x1)
 
 
     def __repr__(self):

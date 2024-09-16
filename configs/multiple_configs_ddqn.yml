@@ -8,10 +8,10 @@ changes:
             model_config:
               reward_function
     options:
-      - SpecializationAndConsistency
-        # - CrossEntropyRouting
-        #- RegretBasedNew
-        #- SpearmanCorrelation
+#      - SpecializationAndConsistency
+        - RegretBasedNew
+        - CrossEntropyRouting
+      #- SpearmanCorrelation
         #- RegretBased
         #- Expertise
         #- ProposalSpecializationAndConsistency

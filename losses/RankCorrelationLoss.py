@@ -26,7 +26,7 @@ class RankCorrelationLoss(Loss):
         # get the cross entropy loss for the top k routes
         ce_losses = []
         for i in range(self.k):
-            logits_i = self.model.get_unsupervised_output(x, routes=route_indices[:, i])
+            logits_i = self.model.get_unsupervised_output(x, routes=torch.zeros_like(route_indices[:, 0]) + i)
             ce_loss = torch.nn.functional.cross_entropy(logits_i, labels, reduction='none')
             ce_losses.append(ce_loss)
         ce_losses = -1 * torch.stack(ce_losses, dim=1)

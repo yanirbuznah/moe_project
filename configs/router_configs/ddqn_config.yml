@@ -1,11 +1,11 @@
 type: RL
 model: DQN
 
-backbone: !include expert_configs/resnet18_expert_config.yml
+backbone: !include router_configs/resnet_18_router_config.yml
 backbone_output_shape: 128
 
 action_assignment_strategy: LinearAssignmentByDiff
-reward_function: SpecializationAndConsistency
+reward_function: RegretBasedNew
 hidden_dim: 128
 buffer_capacity: 61440 # 15 * 4096 - Has to be a multiple of batch_size
 batch_size: 1024

@@ -127,9 +127,9 @@ class CriticNetwork(nn.Module):
 
 
 class Agent:
-    def __init__(self, model: MixtureOfExperts):
+    def __init__(self, model: MixtureOfExperts, config: dict):
         self.model = model
-        self.config = model.router_config['model_config']
+        self.config = config
         self.epsilon = self.config.get('epsilon', 1.0)
         self.env = CustomEnv(model)
         self.state_dim = torch.prod(torch.tensor(self.env.observation_space.shape)).item()

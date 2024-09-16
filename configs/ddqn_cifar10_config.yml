@@ -1,5 +1,5 @@
 log:
-  wandb_project_name: cifar100_reward_function_experiment
+  wandb_project_name: null  #cifar100_reward_function_experiment
   experiment_name: cifar100_debug_experiment
   experiment_description: cifar 100 reward experiment
 

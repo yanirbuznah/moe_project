@@ -2,7 +2,7 @@ from metrics import *
 from metrics.ClassificationMetric import ClassificationMetric
 from metrics.MOEMetric import MOEMetric, PValue, MOEConfusionMatrix, RouterVSRandomAcc, \
     ExpertEntropy, SuperClassEntropy, SuperClassConfusionMatrix, Consistency, Specialization, NewSpecialization, \
-    DeadExperts
+    DeadExperts, AccuracyDiff, SpearmanCorrelation
 from models.MOE import MixtureOfExperts
 
 
@@ -46,6 +46,8 @@ class MetricsFactory:
                 self.metrics_list.append(NewSpecialization())
             elif metric.lower() == 'deadexperts':
                 self.metrics_list.append(DeadExperts())
+            elif metric.lower() == 'accuracydiff':
+                self.metrics_list.append(SpearmanCorrelation())
 
             # else:
             #     self.metrics_list.append(MOEMetric())
