@@ -21,11 +21,20 @@ def get_dataset(name: str, train_dataset: bool):
     elif name.lower() == 'tinyimagenet':
         train = load_dataset('Maysee/tiny-imagenet', split='train')
         val = load_dataset('Maysee/tiny-imagenet', split='valid')
+    elif name.lower() == 'svhn':
+        train = load_dataset('SVHN', 'cropped_digits', split='train')
+        val = load_dataset('SVHN', 'cropped_digits', split='test')
     elif name.lower() == 'imagenet':
         if train_dataset:
             train = load_dataset(path='/dsi/shared/ImageNet', split='train', streaming=True)
         else:
             val = load_dataset(path='/dsi/shared/ImageNet', split='val', streaming=True)
+    elif name.lower() == 'cifar10_and_mnist':
+        train = (get_dataset('cifar10', True), get_dataset('mnist', True))
+        val = (get_dataset('cifar10', False), get_dataset('mnist', False))
+    elif name.lower() == 'cifar10_and_svhn':
+        train =  (get_dataset('cifar10', True), get_dataset('SVHN', True))
+        val =  (get_dataset('cifar10', False), get_dataset('SVHN', False))
     else:
         raise NotImplementedError(f"Dataset {name} not implemented")
     if train_dataset:

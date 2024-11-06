@@ -34,8 +34,8 @@ class MixtureOfExperts(nn.Module):
                                        output_shape=self.input_shape_router) if model_config.get('encoder',
                                                                                                  False) else nn.Identity()
         self.initial_routing_phase = True
-        self.experts[0].load_state_dict(torch.load('/home/dsi/buznahy/moe_project/experiments/baseline_2024-09-01_23-27-30/model0_50.pt'))
-        self.experts[1].load_state_dict(torch.load('/home/dsi/buznahy/moe_project/experiments/baseline_2024-09-02_00-06-44/model50_100.pt'))
+        # self.experts[0].load_state_dict(torch.load('/home/dsi/buznahy/moe_project/chekpoints/model_svhn.pt'))
+        # self.experts[1].load_state_dict(torch.load('/home/dsi/buznahy/moe_project/chekpoints/model_cifar10.pt'))
 
         self.current_router = 0
         # self.router = self.routers[0]

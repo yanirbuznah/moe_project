@@ -68,7 +68,10 @@ class MoEMetricPreprocessor(Metric, metaclass=SingletonMeta):
         for possible_args in possible_args:
             if possible_args in kwargs.keys():
                 args = kwargs[possible_args]
-                return args.cpu() if to_cpu else args
+                if hasattr(args, 'cpu'):
+                    return args.cpu() if to_cpu else args
+                return args
+
         return None
 
     def _get_routes(self, to_cpu=True, **kwargs):

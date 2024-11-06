@@ -1,14 +1,14 @@
 log:
-  wandb_project_name: null #pretrained_experts_experiment # hingeLoss_combinations_losses1 #DeepSeek_regret_based_cifar10_parameters_search # linear_balancing_resnet_cifar10_experiment_detached_experts
-  experiment_name: dummy_experiment
+  wandb_project_name: null # cifar10_and_svhn_base_vs_vgg #pretrained_experts_experiment # hingeLoss_combinations_losses1 #DeepSeek_regret_based_cifar10_parameters_search # linear_balancing_resnet_cifar10_experiment_detached_experts
+  experiment_name: train_from_scratch_cifar10_and_svhn
   experiment_description: dummy_description
 
 
-dataloader: !include dataloader_configs/cifar100_dataloader_config.yml
+dataloader: !include dataloader_configs/cifar10_and_svhn_dataloader_config.yml
 scheduler: true
 model:
-#  model: !include model_configs/resnet18_model_config.yml
-  model: !include model_configs/resnet18_and_rl_combined_model_config.yml
+  model: !include model_configs/resnet18_model_config.yml
+#  model: !include model_configs/resnet18_and_rl_combined_model_config.yml
   loss: !include loss_configs/moe_loss_config.yml
   optimizer: Adam
   lr: !!float 0.001
@@ -16,7 +16,7 @@ model:
 
 metrics:
     - SuperClassConfusionMatrix
-    - MOEConfusionMatrix
+#    - MOEConfusionMatrix
 #    - ConfusionMatrix
     - Accuracy
 #    - F1

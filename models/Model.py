@@ -18,7 +18,7 @@ class Model(nn.Module):
         self.optimizer = get_optimizer(self.model, model_config.get('optimizer'), model_config.get('lr'))
         self.criterion = get_loss(model_config.get('loss'))
         self.criterion.model = self.model
-        self.metrics = get_metrics(config.get('metrics'), train_loader.dataset.get_number_of_classes())
+        self.metrics = get_metrics(config.get('metrics'), train_loader.dataset.get_number_of_active_classes())
         self.alternate = self.model.alternate if hasattr(self.model, 'alternate') else False
         self.router_assignments = []
 

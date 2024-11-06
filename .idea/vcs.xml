@@ -2,5 +2,9 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/models/llm_models/Meta-Llama-3.1-8B" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/models/llm_models/Mixtral-8x7B-v0.1" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/models/llm_models/deepseek-moe-16b-base" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/models/llm_models/llama" vcs="Git" />
   </component>
 </project>

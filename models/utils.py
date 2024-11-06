@@ -32,7 +32,7 @@ def get_router(model: MixtureOfExperts,config:dict):
 
 def get_output_shape(train_set=None, output_shape=None):
     if train_set is not None:
-        return train_set.get_number_of_classes()
+        return train_set.get_number_of_active_classes()
     elif output_shape is not None:
         return output_shape
     else:
@@ -70,6 +70,8 @@ def get_model(config: dict, *, train_set=None, output_shape=None):
         model = MLP(config=model_config, output_size=output_shape)
     elif 'moe' in model_config['type'].lower():
         model = MixtureOfExperts(config=config, output_size=output_shape, train_set=train_set)
+    elif model_config['type'] == 'vgg11':
+        model = torchvision.models.vgg11(num_classes=output_shape)
     elif model_config['type'] == 'dqn':
         pass
     else:

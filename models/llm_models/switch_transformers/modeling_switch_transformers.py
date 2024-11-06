@@ -22,7 +22,7 @@ from typing import Optional, Tuple, Union
 import torch
 import torch.nn as nn
 from torch.nn import CrossEntropyLoss
-from transformers import AutoTokenizer, SwitchTransformersConfig
+from transformers import AutoTokenizer, SwitchTransformersConfig, AutoModelForSeq2SeqLM
 
 from transformers.activations import ACT2FN
 from transformers.modeling_outputs import (
@@ -1868,14 +1868,14 @@ class SwitchTransformersEncoderModel(SwitchTransformersPreTrainedModel):
 from transformers import AutoTokenizer, SwitchTransformersEncoderModel
 
 tokenizer = AutoTokenizer.from_pretrained("google/switch-base-128")
-model = SwitchTransformersEncoderModel.from_pretrained("google/switch-base-128")
+model = AutoModelForSeq2SeqLM.from_pretrained("google/switch-base-128").to('cuda:0')
 input_ids = tokenizer(
     "Studies have been shown that <extra_id_0> a dog is good for you",
     return_tensors="pt"
-).input_ids  # Batch size 1
-outputs = model(input_ids=input_ids)
+).input_ids # Batch size 1
+outputs = model(input_ids=input_ids.to('cuda:0'))
 last_hidden_states = outputs.last_hidden_state
-x = 3
+print(tokenizer.decode(outputs.last_hidden_state.argmax(-1).squeeze().tolist()))
 
 # tokenizer = AutoTokenizer.from_pretrained("google/switch-base-128")
 # model =   SwitchTransformersEncoderModel.from_pretrained("google/switch-base-128", device_map='auto')

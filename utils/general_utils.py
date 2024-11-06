@@ -45,9 +45,14 @@ def run_train_epoch(model: Model, data_loader, scheduler=None) -> float:
     pbar = tqdm(data_loader, desc='Training')
     for batch in pbar:
         loss = model.loss(batch)
+        # model_weight = model.model.experts[0].fc.weight.clone()
+        # router_weight = model.model.router.classifier[-1].weight.clone()
+        # router_weight = model.model.router.fc.weight.clone()
+        # x = torch.equal(model_weight,  model.model.experts[0].fc.weight)
         model.optimizer.zero_grad()
         loss.backward()
         model.optimizer.step()
+
         total_loss += loss.item()
         pbar.set_postfix({'loss': model.get_loss_repr()})
     if scheduler is not None:

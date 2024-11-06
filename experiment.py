@@ -58,7 +58,7 @@ class Experiment:
 
     def evaluate_and_save_results(self, epoch: int, mode: str, model: torch.nn.Module) -> Dict:
         loader = self.train_loader if mode == 'train' else self.test_loader
-        logger.info(f"{mode} evaluation)")
+        logger.info(f"{mode} evaluation")
         evaluate_result = utils.evaluate(model, loader)
         self.save_results_in_experiment_folder(epoch, evaluate_result=evaluate_result, mode=mode)
         return evaluate_result
@@ -118,7 +118,8 @@ class Experiment:
                     cm = ConfusionMatrix.compute_from_y_pred_y_true(labels, preds)
                     logger.debug(cm)
                     experts_correct_preds_per_class.append(np.diag(cm) / cm.sum(axis=1))
-                wandb_log_dict['AccPerExpertHeatMap'] = wandb.plots.HeatMap(
+                if 'MOEConfusionMatrix' in validate_evaluate_results.keys():
+                    wandb_log_dict['AccPerExpertHeatMap'] = wandb.plots.HeatMap(
                     train_evaluate_results['MOEConfusionMatrix'].index,
                     train_evaluate_results['MOEConfusionMatrix'].columns.values,
                     np.array(experts_correct_preds_per_class))
@@ -135,13 +136,13 @@ class Experiment:
         #     self.model.alternate_training_modules(False)
         #     self.model.model.initial_routing_phase = True
         # self.model.alternate_training_modules(True)
-        # if epoch == 0:
-        #     train_evaluate_results = self.evaluate_and_save_results(epoch, mode='train', model=self.model)
-        #     validate_evaluate_results = self.evaluate_and_save_results(epoch, mode='test', model=self.model)
-        #     logger.info(f"Train: {train_evaluate_results}")
-        #     logger.info(f"Validate: {validate_evaluate_results}")
-        #     if wandb.run:
-        #         wandb.log({'train': train_evaluate_results, 'validate': validate_evaluate_results})
+        if False and epoch == 0:
+            train_evaluate_results = self.evaluate_and_save_results(epoch, mode='train', model=self.model)
+            validate_evaluate_results = self.evaluate_and_save_results(epoch, mode='test', model=self.model)
+            logger.info(f"Train: {train_evaluate_results}")
+            logger.info(f"Validate: {validate_evaluate_results}")
+            if wandb.run:
+                wandb.log({'train': train_evaluate_results, 'validate': validate_evaluate_results})
         utils.run_train_epoch(self.model, self.train_loader, self.scheduler)
         train_evaluate_results = self.evaluate_and_save_results(epoch + 1, mode='train', model=self.model)
         validate_evaluate_results = self.evaluate_and_save_results(epoch + 1, mode='test', model=self.model)
@@ -160,7 +161,7 @@ class Experiment:
         #     for e in model.experts:
         #         e.load_state_dict(torch.load('experiments/baseline_2024-08-20_19-11-25/model.pt'))
         for epoch in range(self.model.config['epochs']):
-            while model.current_router_config['epochs'][1] <= epoch:
+            while hasattr(model, "current_router_config") and model.current_router_config['epochs'][1] <= epoch:
                 model.change_router(model.current_router + 1)
             logger.info(f"Epoch {epoch}")
             if isinstance(model, MixtureOfExperts):
@@ -196,11 +197,11 @@ class Experiment:
                     )
                     break
 
-            if validate_results['Accuracy'] >  best_acc:
-                best_acc = validate_results['Accuracy']
-                model_pickle_path = os.path.join(self.experiment_path, 'model.pt')
-                torch.save(model.state_dict(), model_pickle_path)
-                print(f"model saved to {model_pickle_path}")
+            # if validate_results['Accuracy'] > best_acc:
+            #     best_acc = validate_results['Accuracy']
+            #     model_pickle_path = os.path.join(self.experiment_path, 'model.pt')
+            #     torch.save(model.state_dict(), model_pickle_path)
+            #     print(f"model saved to {model_pickle_path}")
             # early_stopping(train_results['total_loss'], validate_results['total_loss'])
             # if early_stopping.early_stop:
             #     early_stopping(train_results['total_loss'], validate_results['total_loss'])
