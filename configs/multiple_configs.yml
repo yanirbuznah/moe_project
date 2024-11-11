@@ -7,13 +7,15 @@ changes:
           MixtureOfExpertLoss:
             losses
     options:
-#      - - !include loss_configs/cross_entropy_loss_config.yml
-#        - !include loss_configs/consistency_loss_config.yml
-#      - - !include loss_configs/cross_entropy_loss_config.yml
-      - - !include loss_configs/switch_load_balancing_loss_config.yml
+      - - !include loss_configs/cross_entropy_loss_config.yml
+        - !include loss_configs/consistency_loss_config.yml
+      - - !include loss_configs/cross_entropy_loss_config.yml
+        - !include loss_configs/switch_load_balancing_loss_config.yml
+      - - !include loss_configs/cross_entropy_loss_config.yml
+        - !include loss_configs/switch_load_balancing_loss_config.yml
         - !include loss_configs/regret_base_loss_config.yml
-#      - - !include loss_configs/cross_entropy_loss_config.yml
-#        - !include loss_configs/hinge_balancing_loss_config.yml
+      - - !include loss_configs/cross_entropy_loss_config.yml
+        - !include loss_configs/hinge_balancing_loss_config.yml
 
 #      - - !include loss_configs/cross_entropy_loss_config.yml
 #        - RegretBaseLoss:
