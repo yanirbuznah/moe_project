@@ -120,10 +120,12 @@ class Experiment:
                     experts_correct_preds_per_class.append(np.diag(cm) / cm.sum(axis=1))
                 if 'MOEConfusionMatrix' in validate_evaluate_results.keys():
                     wandb_log_dict['AccPerExpertHeatMap'] = wandb.plots.HeatMap(
-                    train_evaluate_results['MOEConfusionMatrix'].index,
-                    train_evaluate_results['MOEConfusionMatrix'].columns.values,
-                    np.array(experts_correct_preds_per_class))
+                        train_evaluate_results['MOEConfusionMatrix'].index,
+                        train_evaluate_results['MOEConfusionMatrix'].columns.values,
+                        np.array(experts_correct_preds_per_class))
         wandb.log(wandb_log_dict)
+        wandb.summary.update({'max.validate.Accuracy': max(wandb.summary.get('max.validate.Accuracy', 0), validate_evaluate_results['Accuracy']),
+                              'min.validate.Loss': min(wandb.summary.get('min.validate.Loss', float('inf')), validate_evaluate_results['total_loss'])})
 
     def run_normal_model(self, epoch):
         self.model.model.initial_routing_phase = False
@@ -156,7 +158,7 @@ class Experiment:
         model = self.model.model
         # model.router = model.routers[0]
         early_stopping = EarlyStopping(tolerance=10, min_delta=1.)
-        best_acc = 0 # float('inf')
+        best_acc = 0  # float('inf')
         # if isinstance(model, MixtureOfExperts):
         #     for e in model.experts:
         #         e.load_state_dict(torch.load('experiments/baseline_2024-08-20_19-11-25/model.pt'))
@@ -188,7 +190,7 @@ class Experiment:
                     self.dead_expert_epoch += 1
                 else:
                     self.dead_expert_epoch = 0
-                if self.dead_expert_epoch > 5 and wandb.run:
+                if self.dead_expert_epoch > 50 and wandb.run:
                     wandb.alert(
                         title='Dead Experts',
                         text=f'more then 5 epoch with Dead Experts',

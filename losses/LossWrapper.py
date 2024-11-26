@@ -34,7 +34,8 @@ class LossWrapper(Loss):
             [f'({loss.__repr__()}*{weight})' for weight, loss in zip(self.weights, self.losses)])
 
     def __str__(self):
-        return self.__repr__()
+        return f'{self.operator.__repr__()}'.join(
+            [f'({str(loss)}*{weight})' for weight, loss in zip(self.weights, self.losses)])
 
 
     @property

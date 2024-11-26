@@ -7,15 +7,23 @@ changes:
           MixtureOfExpertLoss:
             losses
     options:
-      - - !include loss_configs/cross_entropy_loss_config.yml
-        - !include loss_configs/consistency_loss_config.yml
+#      - - !include loss_configs/cross_entropy_loss_config.yml
+##        - !include loss_configs/consistency_loss_config.yml
+#
+#      - - !include loss_configs/cross_entropy_loss_config.yml
+#        - !include loss_configs/switch_load_balancing_loss_config.yml
+#
+#      - - !include loss_configs/cross_entropy_loss_config.yml
+#        - !include loss_configs/switch_load_balancing_loss_config.yml
+#        - !include loss_configs/regret_base_loss_config.yml
+#
+#      - - !include loss_configs/cross_entropy_loss_config.yml
+#        - !include loss_configs/hinge_balancing_loss_config.yml
+
+
       - - !include loss_configs/cross_entropy_loss_config.yml
         - !include loss_configs/switch_load_balancing_loss_config.yml
-      - - !include loss_configs/cross_entropy_loss_config.yml
-        - !include loss_configs/switch_load_balancing_loss_config.yml
-        - !include loss_configs/regret_base_loss_config.yml
-      - - !include loss_configs/cross_entropy_loss_config.yml
-        - !include loss_configs/hinge_balancing_loss_config.yml
+        - !include loss_configs/cross_entropy_routing_loss_config.yml
 
 #      - - !include loss_configs/cross_entropy_loss_config.yml
 #        - RegretBaseLoss:
@@ -24,21 +32,21 @@ changes:
 #            params:
 #              k: 2
 #              detach_experts_grad: true
+##      - - !include loss_configs/cross_entropy_loss_config.yml
+##        - RegretBaseLoss:
+##            name: RegretBaseLoss
+##            type: RegretBaseLoss
+##            params:
+##              k: 2
+##              detach_experts_grad: true
+##      - - !include loss_configs/switch_load_balancing_loss_config.yml
+##
 #      - - !include loss_configs/cross_entropy_loss_config.yml
 #        - RegretBaseLoss:
 #            name: RegretBaseLoss
 #            type: RegretBaseLoss
 #            params:
-#              k: 2
-#              detach_experts_grad: true
-#      - - !include loss_configs/switch_load_balancing_loss_config.yml
-#
-#      - - !include loss_configs/cross_entropy_loss_config.yml
-#        - RegretBaseLoss:
-#            name: RegretBaseLoss
-#            type: RegretBaseLoss
-#            params:
-#              k: 2
+#              k: 4
 #              detach_experts_grad: true
 #        - !include loss_configs/switch_load_balancing_loss_config.yml
 #      #        - !include loss_configs/switch_load_balancing_loss_config.yml

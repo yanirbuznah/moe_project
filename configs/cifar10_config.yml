@@ -1,6 +1,6 @@
 log:
-  wandb_project_name: cifar10_and_svhn_resnet_different_losses #pretrained_experts_experiment # hingeLoss_combinations_losses1 #DeepSeek_regret_based_cifar10_parameters_search # linear_balancing_resnet_cifar10_experiment_detached_experts
-  experiment_name: train_from_scratch_cifar10_and_svhn
+  wandb_project_name:  cifar10_and_svhn_base_resnet_10_runs_moe #pretrained_experts_experiment # hingeLoss_combinations_losses1 #DeepSeek_regret_based_cifar10_parameters_search # linear_balancing_resnet_cifar10_experiment_detached_experts
+  experiment_name: train_from_scratch_imagenet
   experiment_description: dummy_description
 
 
@@ -18,6 +18,7 @@ metrics:
     - SuperClassConfusionMatrix
 #    - MOEConfusionMatrix
 #    - ConfusionMatrix
+#    -
     - Accuracy
 #    - F1
 #    - Precision
@@ -32,6 +33,6 @@ metrics:
 
 #    - NewSpecialization
 seed: 0
-epochs: 200
+epochs: 50
 
 # Path: configs\experiment_configs\cifar10_config.yml

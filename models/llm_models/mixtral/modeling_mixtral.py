@@ -18,14 +18,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """PyTorch Mixtral model."""
-
+import copy
 import math
+import os
 from typing import List, Optional, Tuple, Union
 
+import numpy as np
 import torch
 import torch.nn.functional as F
 import torch.utils.checkpoint
 import wandb
+from matplotlib import pyplot as plt
 from torch import nn
 from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
@@ -144,6 +147,15 @@ def load_balancing_loss_func(
 
     overall_loss = torch.sum(tokens_per_expert * router_prob_per_expert.unsqueeze(0))
     return overall_loss * num_experts
+
+
+def swap_indices(tensor, idx1, idx2):
+    tensor = tensor.clone()
+    for i in range(tensor.size(0)):
+        tmp = tensor[i, idx1[i]].item()
+        tensor[i, idx1[i]] = tensor[i, idx2[i]]
+        tensor[i, idx2[i]] = tmp
+    return tensor
 
 
 # Copied from transformers.models.llama.modeling_llama.LlamaRMSNorm with Llama->Mixtral
@@ -661,7 +673,7 @@ class MixtralSparseMoeBlock(nn.Module):
         final_hidden_states = final_hidden_states.reshape(batch_size, sequence_length, hidden_dim)
         # if self.layer_idx == self.config.num_hidden_layers - 1:
         #     random_weights = torch.rand_like(router_logits)
-        #     self.random_expert_final_hidden_states = self.get_final_hidden_states(hidden_states, random_weights)
+        #     self.random_experts_final_hidden_states = self.get_final_hidden_states(hidden_states, random_weights)
         #     _, sorted_indices = torch.sort(router_logits, dim=-1, descending=True)
         #     random_weights, _ = torch.sort(random_weights, dim=-1, descending=True)
         #     inverse_indices = torch.argsort(sorted_indices, dim=1)
@@ -763,20 +775,28 @@ class MixtralDecoderLayer(nn.Module):
         # Fully Connected
         residual = hidden_states
         hidden_states = self.post_attention_layernorm(hidden_states)
-        if not self.training and self.layer_idx == self.config.num_hidden_layers - 1:
+        if not self.training:# and self.layer_idx == self.config.num_hidden_layers - 1:
             hidden_states_copy = hidden_states.clone()
         hidden_states, router_logits = self.block_sparse_moe(hidden_states)
 
-        if not self.training and self.layer_idx == self.config.num_hidden_layers - 1:
+        if not self.training: # and self.layer_idx == self.config.num_hidden_layers - 1:
+            max_indices = torch.argmax(router_logits, dim=-1)
+            rand_indices = torch.randint_like(max_indices, self.config.num_local_experts)
+            router_logits_after_one_replacement = swap_indices(router_logits, max_indices, rand_indices)
             hidden_states_copy = hidden_states_copy.view(-1, hidden_states_copy.shape[-1])
             random_weights = torch.rand_like(router_logits)
-            self.random_expert_final_hidden_states = residual + self.block_sparse_moe.get_final_hidden_states(hidden_states_copy, random_weights)
+
+            self.one_random_expert_final_hidden_states = residual + self.block_sparse_moe.get_final_hidden_states(
+                hidden_states_copy, router_logits_after_one_replacement)
+            self.random_experts_final_hidden_states = residual + self.block_sparse_moe.get_final_hidden_states(
+                hidden_states_copy, random_weights)
             _, sorted_indices = torch.sort(router_logits, dim=-1, descending=True)
             random_weights, _ = torch.sort(random_weights, dim=-1, descending=True)
             inverse_indices = torch.argsort(sorted_indices, dim=1)
             random_weights = random_weights.gather(-1, inverse_indices)
-            self.random_weight_final_hidden_states = residual + self.block_sparse_moe.get_final_hidden_states(hidden_states_copy, random_weights)
-            self.copy_hidden_states = residual + self.block_sparse_moe.get_final_hidden_states(hidden_states_copy, router_logits)
+            self.random_weight_final_hidden_states = residual + self.block_sparse_moe.get_final_hidden_states(
+                hidden_states_copy, random_weights)
+            # self.copy_hidden_states = residual + self.block_sparse_moe.get_final_hidden_states(hidden_states_copy, router_logits)
         hidden_states = residual + hidden_states
 
         outputs = (hidden_states,)
@@ -937,6 +957,8 @@ class MixtralModel(MixtralPreTrainedModel):
         self.gradient_checkpointing = False
         # Initialize weights and apply final processing
         self.post_init()
+        self.random_layer = 0
+
 
     def get_input_embeddings(self):
         return self.embed_tokens
@@ -1014,6 +1036,9 @@ class MixtralModel(MixtralPreTrainedModel):
         all_self_attns = () if output_attentions else None
         all_router_logits = () if output_router_logits else None
         next_decoder_cache = None
+        self.one_random_expert_final_hidden_states = None
+        self.random_weight_final_hidden_states = None
+        
 
         for decoder_layer in self.layers:
             if output_hidden_states:
@@ -1032,6 +1057,8 @@ class MixtralModel(MixtralPreTrainedModel):
                     cache_position,
                 )
             else:
+                # if hidden_states_random_experts is None:
+                #     past_key_values_copy = copy.deepcopy(past_key_values)
                 layer_outputs = decoder_layer(
                     hidden_states,
                     attention_mask=causal_mask,
@@ -1042,6 +1069,34 @@ class MixtralModel(MixtralPreTrainedModel):
                     use_cache=use_cache,
                     cache_position=cache_position,
                 )
+                if not self.training and decoder_layer.layer_idx == self.random_layer:
+                    self.one_random_expert_final_hidden_states = decoder_layer.one_random_expert_final_hidden_states
+                    one_random_expert_past_key_values_copy = copy.deepcopy(past_key_values)
+                    
+                    self.random_weight_final_hidden_states = decoder_layer.random_weight_final_hidden_states
+                    random_weight_past_key_values_copy = copy.deepcopy(past_key_values)
+                    
+
+                elif self.one_random_expert_final_hidden_states is not None:
+                    self.one_random_expert_final_hidden_states = decoder_layer(
+                        self.one_random_expert_final_hidden_states if self.one_random_expert_final_hidden_states is not None else hidden_states,
+                        attention_mask=causal_mask,
+                        position_ids=position_ids,
+                        past_key_value=one_random_expert_past_key_values_copy,
+                        output_attentions=output_attentions,
+                        output_router_logits=output_router_logits,
+                        use_cache=use_cache,
+                        cache_position=cache_position)[0]
+                                        
+                    self.random_weight_final_hidden_states = decoder_layer(
+                        self.random_weight_final_hidden_states if self.random_weight_final_hidden_states is not None else hidden_states,
+                        attention_mask=causal_mask,
+                        position_ids=position_ids,
+                        past_key_value=random_weight_past_key_values_copy,
+                        output_attentions=output_attentions,
+                        output_router_logits=output_router_logits,
+                        use_cache=use_cache,
+                        cache_position=cache_position)[0]
 
             hidden_states = layer_outputs[0]
 
@@ -1054,7 +1109,11 @@ class MixtralModel(MixtralPreTrainedModel):
             if output_router_logits:
                 all_router_logits += (layer_outputs[-1],)
 
-        hidden_states = self.norm(hidden_states) # Is the norm acumulated tensor for the evaulation of the model?
+        hidden_states = self.norm(hidden_states)  # Is the norm acumulated tensor for the evaulation of the model?
+
+        self.one_random_expert_final_hidden_states = self.norm(self.one_random_expert_final_hidden_states)
+        self.random_weight_final_hidden_states = self.norm(self.random_weight_final_hidden_states)
+        
 
         # add hidden states from the last decoder layer
         if output_hidden_states:
@@ -1174,7 +1233,13 @@ class MixtralForCausalLM(MixtralPreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-        self.count_experts_indices = torch.zeros((config.num_experts_per_tok, config.num_local_experts), dtype=torch.int32).cpu()
+        self.count_experts_indices = torch.zeros((config.num_experts_per_tok, config.num_local_experts),
+                                                 dtype=torch.int32).cpu()
+        self.gain_random_weights_history = []
+        self.gain_random_experts_history = []
+        self.gain_random_logits_history = []
+        self.gain_one_random_expert_history = []
+        self.losses = []
 
     def get_input_embeddings(self):
         return self.model.embed_tokens
@@ -1197,12 +1262,11 @@ class MixtralForCausalLM(MixtralPreTrainedModel):
     def convert_count_experts_indices_to_json(self):
         data = []
         for i in range(self.config.num_experts_per_tok):
-            row = {"top expert": f"top_{i+1}"}
+            row = {"top expert": f"top_{i + 1}"}
             for j in range(self.num_experts):
                 row[f"expert_{j}"] = self.count_experts_indices[i, j].item()
             data.append(row)
         return data
-
 
     @add_start_docstrings_to_model_forward(MIXTRAL_INPUTS_DOCSTRING)
     @replace_return_docstrings(output_type=MoeCausalLMOutputWithPast, config_class=_CONFIG_FOR_DOC)
@@ -1276,28 +1340,11 @@ class MixtralForCausalLM(MixtralPreTrainedModel):
         hidden_states = outputs[0]
         logits = self.lm_head(hidden_states)
         logits = logits.float()
-
-        random_weight_logits = self.lm_head(self.model.norm(self.model.layers[-1].random_weight_final_hidden_states))
-        random_expert_logits = self.lm_head(self.model.norm(self.model.layers[-1].random_expert_final_hidden_states))
-        loss_random_weight = self.get_loss(labels, random_weight_logits)
-        loss_random_expert = self.get_loss(labels, random_expert_logits)
-        top2_experts = torch.topk(outputs.router_logits[-1], 2, dim=-1).indices
-        self.count_experts_indices += torch.stack(
-                [torch.bincount(top2_experts[:, i], minlength=self.num_experts) for i in
-                 range(self.config.num_experts_per_tok)]).cpu()
-
-
         # copy_logits = self.lm_head(self.model.norm(self.model.layers[-1].copy_hidden_states))
 
         loss = self.get_loss(labels, logits)
         if labels is not None:
-            random_logits_loss = self.get_loss(labels, torch.rand_like(logits))
-            wandb.log({"loss_random_weight": loss_random_weight.item(), "loss_random_expert": loss_random_expert.item(),
-                       "loss": loss.item(), "loss_random_logits": random_logits_loss.item(),
-                       "gain_random_weight": (loss_random_weight - loss).item(),
-                       "gain_random_expert": (loss_random_expert - loss).item(),
-                       "gain_random_logits": (random_logits_loss - loss).item()})
-            wandb.summary.update({'count_experts_indices': self.convert_count_experts_indices_to_json()})
+            self.log_losses_to_wandb(labels, logits, loss, outputs)
 
         aux_loss = None
         if False and output_router_logits:
@@ -1325,6 +1372,100 @@ class MixtralForCausalLM(MixtralPreTrainedModel):
             attentions=outputs.attentions,
             router_logits=outputs.router_logits,
         )
+    def convert_count_experts_indices_to_json(self):
+        data = []
+        for i in range(self.config.num_experts_per_tok):
+            row = {"top expert": f"top_{i}"}
+            data.append(row)
+            for j in range(self.config.num_local_experts):
+                row[f"expert_{j}"] = self.count_experts_indices[i, j].item()
+        return data
+    def log_losses_to_wandb(self, labels, logits, loss, outputs):
+        random_weight_logits = self.lm_head(self.model.random_weight_final_hidden_states)
+        random_one_expert_logits = self.lm_head(self.model.one_random_expert_final_hidden_states)
+        loss_random_weight = self.get_loss(labels, random_weight_logits)
+        loss_one_random_expert = self.get_loss(labels, random_one_expert_logits)
+        random_logits_loss = self.get_loss(labels, torch.rand_like(logits))
+        gain_random_weight = (loss_random_weight - loss).item()
+        gain_random_logits = (random_logits_loss - loss).item()
+        gain_one_random_expert = (loss_one_random_expert - loss).item()
+        self.gain_random_weights_history.append(gain_random_weight)
+        self.gain_random_logits_history.append(gain_random_logits)
+        self.gain_one_random_expert_history.append(gain_one_random_expert)
+        self.losses.append(loss.item())
+        wandb.log({"loss_random_weight": loss_random_weight.item(),
+                   "loss": loss.item(), "loss_random_logits": random_logits_loss.item(),
+                   "loss_one_random_expert": loss_one_random_expert.item(),
+                   "gain_random_weight": gain_random_weight,
+                   "gain_random_logits": gain_random_logits,
+                   "gain_one_random_expert": gain_one_random_expert,
+                   "relative_gain_random_weight": gain_random_weight / loss.item(),
+                     "relative_gain_random_logits": gain_random_logits / loss.item(),
+                   "relative_gain_one_random_expert": gain_one_random_expert / loss.item(),
+                   })
+        gains = {
+            "mean_gain_random_weight": np.mean(self.gain_random_weights_history),
+            "std_gain_random_weight": np.std(self.gain_random_weights_history),
+            "mean_gain_random_logits": np.mean(self.gain_random_logits_history),
+            "std_gain_random_logits": np.std(self.gain_random_logits_history),
+            "mean_gain_one_random_expert": np.mean(self.gain_one_random_expert_history),
+            "std_gain_one_random_expert": np.std(self.gain_one_random_expert_history),
+            "mean_loss": np.mean(self.losses),
+            "std_loss": np.std(self.losses),
+            "relative_mean_gain_random_weight": np.mean(self.gain_random_weights_history) / np.mean(self.losses),
+            "relative_std_gain_random_weight": np.std(self.gain_random_weights_history) / np.mean(self.losses),
+            "relative_mean_gain_random_logits": np.mean(self.gain_random_logits_history) / np.mean(self.losses),
+            "relative_std_gain_random_logits": np.std(self.gain_random_logits_history) / np.mean(self.losses),
+            "relative_mean_gain_one_random_expert": np.mean(self.gain_one_random_expert_history) / np.mean(self.losses),
+            "relative_std_gain_one_random_expert": np.std(self.gain_one_random_expert_history) / np.mean(self.losses),
+        }
+        wandb.summary.update(gains)
+        wandb.log(gains)
+        wandb.summary.update({'count_experts_indices': self.convert_count_experts_indices_to_json(), 'random_layer': self.model.random_layer})
+
+
+    def log_losses_to_wandb1(self, labels, logits, loss, outputs):
+        random_weight_logits = self.lm_head(self.model.norm(self.model.layers[-1].random_weight_final_hidden_states))
+        random_experts_logits = self.lm_head(self.model.norm(self.model.layers[-1].random_experts_final_hidden_states))
+        random_one_expert_logits = self.lm_head(
+            self.model.norm(self.model.layers[-1].one_random_expert_final_hidden_states))
+        loss_random_weight = self.get_loss(labels, random_weight_logits)
+        loss_random_expert = self.get_loss(labels, random_experts_logits)
+        loss_one_random_expert = self.get_loss(labels, random_one_expert_logits)
+        top2_experts = torch.topk(outputs.router_logits[-1], 2, dim=-1).indices
+        self.count_experts_indices += torch.stack(
+            [torch.bincount(top2_experts[:, i], minlength=self.num_experts) for i in
+             range(self.config.num_experts_per_tok)]).cpu()
+        random_logits_loss = self.get_loss(labels, torch.rand_like(logits))
+        gain_random_weight = (loss_random_weight - loss).item()
+        gain_random_expert = (loss_random_expert - loss).item()
+        gain_random_logits = (random_logits_loss - loss).item()
+        gain_one_random_expert = (loss_one_random_expert - loss).item()
+        self.gain_random_weights_history.append(gain_random_weight)
+        self.gain_random_experts_history.append(gain_random_expert)
+        self.gain_random_logits_history.append(gain_random_logits)
+        self.gain_one_random_expert_history.append(gain_one_random_expert)
+        wandb.log({"loss_random_weight": loss_random_weight.item(), "loss_random_expert": loss_random_expert.item(),
+                   "loss": loss.item(), "loss_random_logits": random_logits_loss.item(),
+                   "loss_one_random_expert": loss_one_random_expert.item(),
+                   "gain_random_weight": gain_random_weight,
+                   "gain_random_expert": gain_random_expert,
+                   "gain_random_logits": gain_random_logits,
+                   "gain_one_random_expert": gain_one_random_expert,
+                   })
+        gains = {
+            "mean_gain_random_weight": np.mean(self.gain_random_weights_history),
+            "std_gain_random_weight": np.std(self.gain_random_weights_history),
+            "mean_gain_random_expert": np.mean(self.gain_random_experts_history),
+            "std_gain_random_expert": np.std(self.gain_random_experts_history),
+            "mean_gain_random_logits": np.mean(self.gain_random_logits_history),
+            "std_gain_random_logits": np.std(self.gain_random_logits_history),
+            "mean_gain_one_random_expert": np.mean(self.gain_one_random_expert_history),
+            "std_gain_one_random_expert": np.std(self.gain_one_random_expert_history),
+        }
+        wandb.summary.update(gains)
+        wandb.log(gains)
+        wandb.summary.update({'count_experts_indices': self.convert_count_experts_indices_to_json()})
 
     def get_loss(self, labels, logits):
         loss = None
@@ -1596,8 +1737,42 @@ class MixtralForTokenClassification(MixtralPreTrainedModel):
             attentions=outputs.attentions,
         )
 
+def get_heat_map_model(model: MixtralForCausalLM):
+    # make similarity matrices folder
+    if not os.path.exists("random_vec_similarity_matrices"):
+        os.makedirs("random_vec_similarity_matrices", exist_ok=True)
+    layer: MixtralDecoderLayer
+    x = torch.rand((4096))
+    for layer in model.model.layers:
+        experts = layer.block_sparse_moe.experts
+        # experts_vectors = [torch.cat((expert.w1.weight.flatten(), expert.w2.weight.flatten(), expert.w3.weight.flatten()), dim=0) for expert in experts]
+        experts_vectors = [expert(x) for expert in experts]
+        # get cosine similarity between expert vectors
+        expert_vectors = torch.stack(experts_vectors)
+        expert_vectors = expert_vectors / expert_vectors.norm(dim=-1, keepdim=True)
+        similarity_matrix = expert_vectors @ expert_vectors.T
+        similarity_matrix = similarity_matrix.cpu().detach().numpy()
+        plt.imshow(similarity_matrix, cmap='hot', interpolation='nearest')
+        plt.colorbar()
+        plt.savefig(f"random_vec_similarity_matrices/expert_similarity_layer_{layer.layer_idx}.png")
+        plt.show()
+        # # get cosine similarity between gate and expert vectors
+        # gate = layer.block_sparse_moe.gate
+        # gate_vectors = gate.weight.flatten()
+        # gate_vectors = gate_vectors / gate_vectors.norm(dim=-1, keepdim=True)
+        # similarity_matrix = expert_vectors @ gate_vectors.T
+        # similarity_matrix = similarity_matrix.cpu().detach().numpy()
+        # plt.imshow(similarity_matrix, cmap='hot', interpolation='nearest')
+        # plt.savefig(f"similarity_matrices/gate_expert_similarity_layer_{layer.layer_idx}.png")
+        # plt.show()
+
+
+
+
 
 if __name__ == '__main__':
+    import time
+    # time.sleep(60*60*6)
     import torch
     from transformers import AutoTokenizer, Trainer, DataCollatorForLanguageModeling
 
@@ -1608,10 +1783,10 @@ if __name__ == '__main__':
 
     from datasets import load_dataset
 
-    test_open_orca_ds = load_dataset("Open-Orca/OpenOrca", split="train[2:100000]",
-                                     cache_dir="/data/users/buznahy/datasets/test_100000")
+    test_open_orca_ds = load_dataset("Open-Orca/OpenOrca", split="train[:1000]",
+                                     cache_dir="/data/users/buznahy/datasets/test_1000")
     train_open_orca_ds = load_dataset("Open-Orca/OpenOrca", split="train[0:1]",
-                                      cache_dir="/data/users/buznahy/datasets/test_100000")
+                                      cache_dir="/data/users/buznahy/datasets/test_1000")
 
     test_tokenized_dataset = test_open_orca_ds.map(lambda x:
                                                    tokenizer(
@@ -1621,7 +1796,7 @@ if __name__ == '__main__':
                                                        padding='max_length',
                                                        max_length=256,
                                                    ),
-                                                   cache_file_name='/data/users/buznahy/deepseek/cache/test_100000_256_length')
+                                                   cache_file_name='/data/users/buznahy/deepseek/cache/test_1000_256_length')
     train_tokenized_dataset = train_open_orca_ds.map(lambda x:
                                                      tokenizer(
                                                          x['question'],
@@ -1634,84 +1809,67 @@ if __name__ == '__main__':
 
     model = MixtralForCausalLM.from_pretrained(model_name, device_map="auto", cache_dir=cache_model_dir)
     model.config.output_router_logits = True
-    # model = DeepseekForCausalLM(config=
-    #                             DeepseekConfig(hidden_size=320,  # tokenizer.vocab_size,
-    #                                            intermediate_size=10, moe_intermediate_size=10,
-    #                                            aux_loss_alpha=0.1, n_routed_experts=5, num_hidden_layers=3,
-    #                                            num_experts_per_tok=3, norm_topk_prob=True)).to("cuda")
-    # model.generation_config = GenerationConfig.from_pretrained(model_name, trust_remote_code=True)
-
     model.generation_config.pad_token_id = model.generation_config.eos_token_id
-    # text = "An attention function can be described as mapping a query and a set of key-value pairs to an output, where the query, keys, values, and output are all vectors. The output is"
-    # inputs = tokenizer(text, return_tensors="pt")
-    # model.eval()
-    # outputs = model.generate(**inputs.to(model.device), max_new_tokens=100, output_router_logits=True)
-    #
-    # result = tokenizer.decode(outputs[0], skip_special_tokens=True)
-    # print(result)
     from transformers import Trainer, TrainingArguments
 
-    # Define the training arguments
-    training_args = TrainingArguments(
-        output_dir="/data/users/buznahy/mixtral/results",
-        eval_strategy="epoch",
-        learning_rate=0.0,
-        per_device_train_batch_size=1,
-        per_device_eval_batch_size=1,
-        num_train_epochs=1,
-        weight_decay=0.01,
-        logging_dir="/data/users/buznahy/mixtral/results/logs",
-        logging_steps=10,
-        eval_accumulation_steps=10,
-        gradient_accumulation_steps=16,
-        eval_on_start=True,
-        # torch_empty_cache_steps=5,
-    )
-    # optimizer_params = [{'params': layer.block_sparse_moe.gate.parameters()} for layer in model.model.layers if
-    #                     isinstance(layer.block_sparse_moe, MixtralSparseMoeBlock)]
+    for l in [8,20,24,28]:
+        try:
+            model.model.random_layer = l
+            # Define the training arguments
+            training_args = TrainingArguments(
+                # use_ipex = True,
+                # use_cpu = True,
 
-    # Initialize the Trainer
-    trainer = Trainer(
-        optimizers=(torch.optim.AdamW([{'params': model.model.layers[0].block_sparse_moe.gate.parameters()}], lr=0.0), None),
-        model=model,
-        args=training_args,
-        train_dataset=train_tokenized_dataset,
-        eval_dataset=test_tokenized_dataset,
-        tokenizer=tokenizer,
-        data_collator=DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
-    )
+                output_dir="/data/users/buznahy/mixtral/results",
+                eval_strategy="epoch",
+                learning_rate=0.0,
+                per_device_train_batch_size=1,
+                per_device_eval_batch_size=1,
+                num_train_epochs=1,
+                weight_decay=0.01,
+                logging_dir="/data/users/buznahy/mixtral/results/logs",
+                logging_steps=10,
+                eval_accumulation_steps=10,
+                gradient_accumulation_steps=16,
+                eval_on_start=True,
+                # torch_empty_cache_steps=5,
+            )
+            # Initialize the Trainer
+            trainer = Trainer(
+                optimizers=(
+                torch.optim.AdamW([{'params': model.model.layers[0].block_sparse_moe.gate.parameters()}], lr=0.0), None),
+                model=model,
+                args=training_args,
+                train_dataset=train_tokenized_dataset,
+                eval_dataset=test_tokenized_dataset,
+                tokenizer=tokenizer,
+                data_collator=DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
+            )
 
-    # expert1_layer1 = model.model.layers[1].block_sparse_moe.experts[0].w1.weight.clone()
-    # gate_layer1 = model.model.layers[1].block_sparse_moe.gate.weight.clone()
-    # lm_head_layer1 = model.lm_head.weight.clone()
+            print(f"model device: {model.device}")
+            # Train the model
+            trainer.train()
+        except torch.cuda.OutOfMemoryError as e:
+            print(e)
+            continue
 
-    # freeze the model except the routers in each mlp in each decoder layer
-    # for layer in model.model.parameters():
-    #     if layer.requires_grad:
-    #         layer.requires_grad = False
-    # for layer in model.model.layers:
-    #     layer.mlp.gate.requires_grad = True
-    print(f"model device: {model.device}")
-    # Train the model
-    trainer.train()
-
-    # Evaluate the model
-    eval_results = trainer.evaluate()
-    print(f"Average evaluation loss: {eval_results['eval_loss']}")
-
-    # print(f"model device: {model.device}")
-    # # Train the model
-    # trainer.train()
-
-    expert1_layer1_after = model.model.layers[1].block_sparse_moe.experts[0].w1.weight
-    gate_layer1_after = model.model.layers[1].block_sparse_moe.gate.weight
-    lm_head_layer_after = model.layers[1].lm_head.weight
-
-    print(torch.equal(expert1_layer1, expert1_layer1_after))
-    print(torch.equal(gate_layer1, gate_layer1_after))
-    print(torch.equal(lm_head_layer1, lm_head_layer_after))
-    print(torch.equal(lm_head, lm_head_after))
-
-    # Evaluate the model
-    eval_results = trainer.evaluate()
-    print(f"Average evaluation loss: {eval_results['eval_loss']}")
+    # # Evaluate the model
+    # eval_results = trainer.evaluate()
+    # print(f"Average evaluation loss: {eval_results['eval_loss']}")
+    #
+    # # print(f"model device: {model.device}")
+    # # # Train the model
+    # # trainer.train()
+    #
+    # expert1_layer1_after = model.model.layers[1].block_sparse_moe.experts[0].w1.weight
+    # gate_layer1_after = model.model.layers[1].block_sparse_moe.gate.weight
+    # lm_head_layer_after = model.layers[1].lm_head.weight
+    #
+    # print(torch.equal(expert1_layer1, expert1_layer1_after))
+    # print(torch.equal(gate_layer1, gate_layer1_after))
+    # print(torch.equal(lm_head_layer1, lm_head_layer_after))
+    # print(torch.equal(lm_head, lm_head_after))
+    #
+    # # Evaluate the model
+    # eval_results = trainer.evaluate()
+    # print(f"Average evaluation loss: {eval_results['eval_loss']}")
