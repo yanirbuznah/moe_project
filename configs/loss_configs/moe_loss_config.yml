@@ -3,10 +3,13 @@ MixtureOfExpertLoss:
     type: LossCombination
     operator: "+"
     losses:
+         - !include loss_configs/cross_entropy_loss_config.yml
+         - !include loss_configs/switch_load_balancing_loss_config.yml
+         - !include loss_configs/cross_entropy_routing_loss_config.yml
 #        - !include loss_configs/cross_entropy_loss_config.yml
 #        - !include loss_configs/regret_base_loss_config.yml
 #        - !include loss_configs/rank_correlation_loss_config.yml
 #        - !include loss_configs/switch_load_balancing_loss_config.yml
-        - !include loss_configs/consistency_loss_config.yml
-        - !include loss_configs/specialization_loss_config.yml
-    weights: [1., 1.]
+#        - !include loss_configs/consistency_loss_config.yml
+#        - !include loss_configs/specialization_loss_config.yml
+    weights: [1., 1., 1.]

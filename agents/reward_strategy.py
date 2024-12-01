@@ -3,8 +3,7 @@ import torch
 from scipy.stats import spearmanr
 from torch import nn
 
-from metrics.MOEMetric import Specialization, Consistency, NewSpecialization
-from models.MOE import MixtureOfExperts
+from metrics.MOEMetric import Consistency, NewSpecialization
 
 
 # from utils.general_utils import device
@@ -187,10 +186,12 @@ class RewardStrategy:
         one_hot_routes = torch.nn.functional.one_hot(routes).float().T
         one_hot_labels = torch.nn.functional.one_hot(true_assignments).float()
         oh_preds = torch.nn.functional.one_hot(preds, num_classes=self.num_of_classes)
-        consistency = one_hot_routes @ one_hot_labels # Cij = probability of expert i for class j
-        specialization = one_hot_routes @ (one_hot_labels * oh_preds)  # Sij = probability of expert i for class j and prediction j
+        consistency = one_hot_routes @ one_hot_labels  # Cij = probability of expert i for class j
+        specialization = one_hot_routes @ (
+                    one_hot_labels * oh_preds)  # Sij = probability of expert i for class j and prediction j
         specialization = specialization / torch.maximum(consistency, torch.ones(1).to(consistency.device))
-        consistency = consistency / torch.maximum(consistency.sum(axis=0, keepdims=True), torch.ones(1).to(consistency.device))
+        consistency = consistency / torch.maximum(consistency.sum(axis=0, keepdims=True),
+                                                  torch.ones(1).to(consistency.device))
         return consistency, specialization
 
     def _specialization_and_consistency1(self, sample, action, model, out=None, y=None):
@@ -207,10 +208,9 @@ class RewardStrategy:
                    range(len(acc))]
         # rewards = [acc[i] * consistency[action[i], y[i]] * specialization[action[i],y[i]] * load_var for i in range(len(acc))]
         rewards = torch.stack(rewards) if isinstance(rewards[0], torch.Tensor) else torch.FloatTensor(rewards)
-        rewards1 = self._specialization_and_consistency(sample,action,model)
+        rewards1 = self._specialization_and_consistency(sample, action, model)
         # assert torch.equal(rewards1,rewards)
         return rewards1
-
 
     def _entropy(self, sample, action, model):
         action_count = torch.bincount(action, minlength=self.num_of_experts)
@@ -306,7 +306,8 @@ class RewardStrategy:
         consistency = one_hot_routes @ one_hot_labels
         specialization = one_hot_routes @ (one_hot_labels * oh_preds)
         specialization = specialization / torch.maximum(consistency, torch.ones(1).to(consistency.device))
-        consistency = consistency / torch.maximum(consistency.sum(axis=0, keepdims=True), torch.ones(1).to(consistency.device))
+        consistency = consistency / torch.maximum(consistency.sum(axis=0, keepdims=True),
+                                                  torch.ones(1).to(consistency.device))
         return consistency, specialization
 
     def _get_C_matrix1(self, preds, routes, true_assignments):

@@ -8,4 +8,4 @@ torchvision
 Pillow
 numpy
 tqdm
-pyyaml-include
+pyyaml-include~=1.3.1

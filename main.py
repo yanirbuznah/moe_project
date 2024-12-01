@@ -1,24 +1,20 @@
 #!/usr/bin/env python3
 
-import pickle
 import traceback
 from datetime import datetime
 from itertools import product
 from pprint import pformat
 
 import numpy as np
-from datasets import load_dataset
+# Load model directly
+import pandas as pd
 
 import wandb
-
-from logger import Logger  # , init_logger
 # if not Logger.initialized:
 #     init_logger()
 from experiment import Experiment
+from logger import Logger  # , init_logger
 from parameters_parser import parse_args
-# Load model directly
-from transformers import AutoModelForCausalLM, AutoTokenizer
-import pandas as pd
 
 
 def run_experiment(config, run=None):
@@ -32,7 +28,7 @@ def run_experiment(config, run=None):
         logger.fatal(f'Exception occurred during experiment:\n {traceback.format_exc()}')
     finally:
         if run:
-            df = pd.read_csv('results/runs_summary.csv')
+            df = pd.read_csv('results/runs_summary_base1.csv')
             df = df.append({'id': run.id, 'start_time': datetime.fromtimestamp(run.start_time), 'dir': run.dir,
                             'link': run.get_url(), 'criterion': str(experiment.model.criterion),
                             'project_name': config['log'].get('wandb_project_name', None),
@@ -42,7 +38,7 @@ def run_experiment(config, run=None):
                             'min_loss': run.summary.get('min.validate.Loss', -1),
                             'comments': ''},
                            ignore_index=True)
-            df.to_csv('results/runs_summary_base.csv', index=False)
+            df.to_csv('results/runs_summary_base1.csv', index=False)
         acc = run.summary.get('max.validate.Accuracy', 0)
         Logger.shutdown(experiment.experiment_path)
         wandb.finish()
@@ -98,8 +94,9 @@ def main():
 
 
 if __name__ == '__main__':
-    accs = []
-    for i in range(10):
+    accs = [0.9197102575488455, 0.9181005772646537, 0.9203485790408525, 0.9184336145648313, 0.9194604795737122,
+            0.9191274422735346]
+    for i in range(4):
         accs.extend(main())
         print(accs)
     print(np.mean(accs))
