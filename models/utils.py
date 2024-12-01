@@ -3,7 +3,6 @@ import torchvision
 from torch import nn
 
 from agents import dqn, ppo
-from agents.custom_env import CustomEnv
 from losses import CrossEntropyLoss, MSELoss, L1Loss, SwitchLoadBalancingLoss, LossWrapper, SpecializationLoss, \
     ConsistencyLoss, RankCorrelationLoss, RegretBaseLoss, CrossEntropyRoutingLoss, FakeCrossEntropyLoss, \
     HingeBalancingLoss
@@ -12,7 +11,7 @@ from models.MLP import MLP
 from models.MOE import MixtureOfExperts
 
 
-def get_agent(model: MixtureOfExperts, config:dict):
+def get_agent(model: MixtureOfExperts, config: dict):
     router_type = config['model']
     if router_type.lower() == 'dqn':
         router = dqn.Agent(model, config)
@@ -23,7 +22,7 @@ def get_agent(model: MixtureOfExperts, config:dict):
     return router
 
 
-def get_router(model: MixtureOfExperts,config:dict):
+def get_router(model: MixtureOfExperts, config: dict):
     if 'rl' in config['type'].lower():
         return get_agent(model, config['model_config'])
     else:
