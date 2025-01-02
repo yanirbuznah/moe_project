@@ -1,3 +1,10 @@
+import traceback
+import sys
+sys.path.append('/home/dsi/buznahy/moe_project/models/llm_models')
+from utils.utils import compute_perplexity
+# from models.llm_models.utils import compute_perplexity
+from utils.cuda_utils import get_gpu_free_memory
+
 # coding=utf-8
 # Copyright 2023 Mistral AI and the HuggingFace Inc. team. All rights reserved.
 #
@@ -24,7 +31,6 @@ import os
 from typing import List, Optional, Tuple, Union
 
 import numpy as np
-import torch
 import torch.nn.functional as F
 import torch.utils.checkpoint
 import wandb
@@ -668,7 +674,7 @@ class MixtralSparseMoeBlock(nn.Module):
         hidden_states = hidden_states.view(-1, hidden_states_shape[-1])
         # router_logits: (batch * sequence_length, n_experts)
         router_logits = self.gate(hidden_states)
-
+        # router_logits = torch.rand_like(router_logits)
         final_hidden_states = self.get_final_hidden_states(hidden_states, router_logits)
         final_hidden_states = final_hidden_states.reshape(batch_size, sequence_length, hidden_dim)
         # if self.layer_idx == self.config.num_hidden_layers - 1:
@@ -775,11 +781,11 @@ class MixtralDecoderLayer(nn.Module):
         # Fully Connected
         residual = hidden_states
         hidden_states = self.post_attention_layernorm(hidden_states)
-        if not self.training:# and self.layer_idx == self.config.num_hidden_layers - 1:
+        if not self.training:  # and self.layer_idx == self.config.num_hidden_layers - 1:
             hidden_states_copy = hidden_states.clone()
         hidden_states, router_logits = self.block_sparse_moe(hidden_states)
 
-        if not self.training: # and self.layer_idx == self.config.num_hidden_layers - 1:
+        if not self.training:  # and self.layer_idx == self.config.num_hidden_layers - 1:
             max_indices = torch.argmax(router_logits, dim=-1)
             rand_indices = torch.randint_like(max_indices, self.config.num_local_experts)
             router_logits_after_one_replacement = swap_indices(router_logits, max_indices, rand_indices)
@@ -959,7 +965,6 @@ class MixtralModel(MixtralPreTrainedModel):
         self.post_init()
         self.random_layer = 0
 
-
     def get_input_embeddings(self):
         return self.embed_tokens
 
@@ -1038,7 +1043,6 @@ class MixtralModel(MixtralPreTrainedModel):
         next_decoder_cache = None
         self.one_random_expert_final_hidden_states = None
         self.random_weight_final_hidden_states = None
-        
 
         for decoder_layer in self.layers:
             if output_hidden_states:
@@ -1069,13 +1073,16 @@ class MixtralModel(MixtralPreTrainedModel):
                     use_cache=use_cache,
                     cache_position=cache_position,
                 )
-                if not self.training and decoder_layer.layer_idx == self.random_layer:
+
+                one_random_layer = False
+                if not self.training and (decoder_layer.layer_idx == self.random_layer or not one_random_layer):
                     self.one_random_expert_final_hidden_states = decoder_layer.one_random_expert_final_hidden_states
                     one_random_expert_past_key_values_copy = copy.deepcopy(past_key_values)
-                    
+
                     self.random_weight_final_hidden_states = decoder_layer.random_weight_final_hidden_states
                     random_weight_past_key_values_copy = copy.deepcopy(past_key_values)
-                    
+
+
 
                 elif self.one_random_expert_final_hidden_states is not None:
                     self.one_random_expert_final_hidden_states = decoder_layer(
@@ -1087,7 +1094,7 @@ class MixtralModel(MixtralPreTrainedModel):
                         output_router_logits=output_router_logits,
                         use_cache=use_cache,
                         cache_position=cache_position)[0]
-                                        
+
                     self.random_weight_final_hidden_states = decoder_layer(
                         self.random_weight_final_hidden_states if self.random_weight_final_hidden_states is not None else hidden_states,
                         attention_mask=causal_mask,
@@ -1110,10 +1117,9 @@ class MixtralModel(MixtralPreTrainedModel):
                 all_router_logits += (layer_outputs[-1],)
 
         hidden_states = self.norm(hidden_states)  # Is the norm acumulated tensor for the evaulation of the model?
-
-        self.one_random_expert_final_hidden_states = self.norm(self.one_random_expert_final_hidden_states)
-        self.random_weight_final_hidden_states = self.norm(self.random_weight_final_hidden_states)
-        
+        if not self.training:
+            self.one_random_expert_final_hidden_states = self.norm(self.one_random_expert_final_hidden_states)
+            self.random_weight_final_hidden_states = self.norm(self.random_weight_final_hidden_states)
 
         # add hidden states from the last decoder layer
         if output_hidden_states:
@@ -1343,7 +1349,7 @@ class MixtralForCausalLM(MixtralPreTrainedModel):
         # copy_logits = self.lm_head(self.model.norm(self.model.layers[-1].copy_hidden_states))
 
         loss = self.get_loss(labels, logits)
-        if labels is not None:
+        if labels is not None and not self.training:
             self.log_losses_to_wandb(labels, logits, loss, outputs)
 
         aux_loss = None
@@ -1372,6 +1378,7 @@ class MixtralForCausalLM(MixtralPreTrainedModel):
             attentions=outputs.attentions,
             router_logits=outputs.router_logits,
         )
+
     def convert_count_experts_indices_to_json(self):
         data = []
         for i in range(self.config.num_experts_per_tok):
@@ -1380,6 +1387,7 @@ class MixtralForCausalLM(MixtralPreTrainedModel):
             for j in range(self.config.num_local_experts):
                 row[f"expert_{j}"] = self.count_experts_indices[i, j].item()
         return data
+
     def log_losses_to_wandb(self, labels, logits, loss, outputs):
         random_weight_logits = self.lm_head(self.model.random_weight_final_hidden_states)
         random_one_expert_logits = self.lm_head(self.model.one_random_expert_final_hidden_states)
@@ -1400,7 +1408,7 @@ class MixtralForCausalLM(MixtralPreTrainedModel):
                    "gain_random_logits": gain_random_logits,
                    "gain_one_random_expert": gain_one_random_expert,
                    "relative_gain_random_weight": gain_random_weight / loss.item(),
-                     "relative_gain_random_logits": gain_random_logits / loss.item(),
+                   "relative_gain_random_logits": gain_random_logits / loss.item(),
                    "relative_gain_one_random_expert": gain_one_random_expert / loss.item(),
                    })
         gains = {
@@ -1421,8 +1429,8 @@ class MixtralForCausalLM(MixtralPreTrainedModel):
         }
         wandb.summary.update(gains)
         wandb.log(gains)
-        wandb.summary.update({'count_experts_indices': self.convert_count_experts_indices_to_json(), 'random_layer': self.model.random_layer})
-
+        wandb.summary.update({'count_experts_indices': self.convert_count_experts_indices_to_json(),
+                              'random_layer': self.model.random_layer})
 
     def log_losses_to_wandb1(self, labels, logits, loss, outputs):
         random_weight_logits = self.lm_head(self.model.norm(self.model.layers[-1].random_weight_final_hidden_states))
@@ -1737,24 +1745,27 @@ class MixtralForTokenClassification(MixtralPreTrainedModel):
             attentions=outputs.attentions,
         )
 
+
 def get_heat_map_model(model: MixtralForCausalLM):
     # make similarity matrices folder
-    if not os.path.exists("random_vec_similarity_matrices"):
-        os.makedirs("random_vec_similarity_matrices", exist_ok=True)
+    if not os.path.exists("similarity_matrices"):
+        os.makedirs("similarity_matrices", exist_ok=True)
     layer: MixtralDecoderLayer
     x = torch.rand((4096))
     for layer in model.model.layers:
         experts = layer.block_sparse_moe.experts
-        # experts_vectors = [torch.cat((expert.w1.weight.flatten(), expert.w2.weight.flatten(), expert.w3.weight.flatten()), dim=0) for expert in experts]
-        experts_vectors = [expert(x) for expert in experts]
+        experts_vectors = [
+            torch.cat((expert.w1.weight.flatten(), expert.w2.weight.flatten(), expert.w3.weight.flatten()), dim=0) for
+            expert in experts]
+        # experts_vectors = [expert(x) for expert in experts]
         # get cosine similarity between expert vectors
         expert_vectors = torch.stack(experts_vectors)
         expert_vectors = expert_vectors / expert_vectors.norm(dim=-1, keepdim=True)
         similarity_matrix = expert_vectors @ expert_vectors.T
         similarity_matrix = similarity_matrix.cpu().detach().numpy()
-        plt.imshow(similarity_matrix, cmap='hot', interpolation='nearest')
+        plt.imshow(similarity_matrix, cmap='hot', interpolation='nearest', vmin=0, vmax=1)
         plt.colorbar()
-        plt.savefig(f"random_vec_similarity_matrices/expert_similarity_layer_{layer.layer_idx}.png")
+        plt.savefig(f"similarity_matrices/expert_similarity_layer_{layer.layer_idx}.png")
         plt.show()
         # # get cosine similarity between gate and expert vectors
         # gate = layer.block_sparse_moe.gate
@@ -1767,26 +1778,43 @@ def get_heat_map_model(model: MixtralForCausalLM):
         # plt.show()
 
 
-
+def wait_to_gpu(gpu_memory_size=100, waiting_interval=600, num_of_tries=60):
+    free_gpu_memory = sum(get_gpu_free_memory())
+    for _ in range(num_of_tries):
+        if free_gpu_memory > gpu_memory_size:
+            print(f"GPU memory is enough: {free_gpu_memory}GiB,\nstarting training")
+            return True
+        print(f"Free GPU memory: {free_gpu_memory}GiB")
+        print("GPU memory is low, waiting for 10 minutes")
+        time.sleep(waiting_interval)
+        free_gpu_memory = sum(get_gpu_free_memory())
+    return False
 
 
 if __name__ == '__main__':
+    from deepspeed_configs.get_deepspeed_config import get_deepspeed_config
+    print("Free GPU memory: ", get_gpu_free_memory())
     import time
     # time.sleep(60*60*6)
     import torch
-    from transformers import AutoTokenizer, Trainer, DataCollatorForLanguageModeling
 
+    print(f"torch version:{torch.__version__}")
+    from transformers import AutoTokenizer, Trainer, DataCollatorForLanguageModeling, TrainingArguments
+
+    base_path = "/data/users/buznahy/" if os.path.exists("/data/users/buznahy/") else "/home/dsi/buznahy/"
+
+    cache_model_dir = f"{base_path}mistralai/Mixtral-8x7B-v0.1"
     model_name = "mistralai/Mixtral-8x7B-v0.1"
-    cache_model_dir = "/data/users/buznahy/mistralai/Mixtral-8x7B-v0.1"
+
     tokenizer = AutoTokenizer.from_pretrained(model_name, cache_dir=cache_model_dir)
     tokenizer.pad_token = tokenizer.eos_token
 
     from datasets import load_dataset
 
     test_open_orca_ds = load_dataset("Open-Orca/OpenOrca", split="train[:1000]",
-                                     cache_dir="/data/users/buznahy/datasets/test_1000")
-    train_open_orca_ds = load_dataset("Open-Orca/OpenOrca", split="train[0:1]",
-                                      cache_dir="/data/users/buznahy/datasets/test_1000")
+                                     cache_dir=f"{base_path}/datasets/train_size_1_test_size_1000_length_256")
+    train_open_orca_ds = load_dataset("Open-Orca/OpenOrca", split="train[0:1]"
+                                      , cache_dir=f"{base_path}/datasets/train_size_1_test_size_1000_length_256")
 
     test_tokenized_dataset = test_open_orca_ds.map(lambda x:
                                                    tokenizer(
@@ -1794,63 +1822,112 @@ if __name__ == '__main__':
                                                        x['response'],
                                                        truncation=True,
                                                        padding='max_length',
-                                                       max_length=256,
+                                                       max_length=20,
                                                    ),
-                                                   cache_file_name='/data/users/buznahy/deepseek/cache/test_1000_256_length')
+                                                   cache_file_name=f'{base_path}deepseek/cache/test_size_1000_length_20')
     train_tokenized_dataset = train_open_orca_ds.map(lambda x:
                                                      tokenizer(
                                                          x['question'],
                                                          x['response'],
                                                          truncation=True,
                                                          padding='max_length',
-                                                         max_length=256
+                                                         max_length=20
                                                      ),
-                                                     cache_file_name='/data/users/buznahy/deepseek/cache/_train_1_256_length')
+                                                     cache_file_name=f'{base_path}deepseek/cache/train_size_1_length_20')
 
-    model = MixtralForCausalLM.from_pretrained(model_name, device_map="auto", cache_dir=cache_model_dir)
-    model.config.output_router_logits = True
-    model.generation_config.pad_token_id = model.generation_config.eos_token_id
-    from transformers import Trainer, TrainingArguments
+    # Define the training arguments
+    training_args = TrainingArguments(
+        # use_ipex = True,
+        # use_cpu = True,
 
-    for l in [8,20,24,28]:
+        output_dir=f"{base_path}mixtral/results",
+        eval_strategy="epoch",
+        learning_rate=1e-4,
+        per_device_train_batch_size=1,
+        per_device_eval_batch_size=1,
+        num_train_epochs=1,
+        weight_decay=0.01,
+        logging_dir=f"{base_path}mixtral/results/logs",
+        logging_steps=10,
+        eval_accumulation_steps=10,
+        gradient_accumulation_steps=1,
+        # fp16=True,
+        # dataloader_num_workers=4,
+        deepspeed=get_deepspeed_config('zero2'),
+        # Optional: if using DeepSpeed # Enable distributed training
+        # local_rank=-1 # Set this to the rank of the process
+        # eval_on_start=True,
+        # torch_empty_cache_steps=5,
+    )
+
+
+    def compute_metrics(eval_pred):
+        logits, labels = eval_pred
+        return {"perplexity": compute_perplexity(logits[0])}
+
+
+    # 4, 8,20,
+    for l in [0]:
         try:
-            model.model.random_layer = l
-            # Define the training arguments
-            training_args = TrainingArguments(
-                # use_ipex = True,
-                # use_cpu = True,
+            if wait_to_gpu():
+                device = "auto"
+            else:
+                device = "cpu"
+                training_args.use_cpu = True
 
-                output_dir="/data/users/buznahy/mixtral/results",
-                eval_strategy="epoch",
-                learning_rate=0.0,
-                per_device_train_batch_size=1,
-                per_device_eval_batch_size=1,
-                num_train_epochs=1,
-                weight_decay=0.01,
-                logging_dir="/data/users/buznahy/mixtral/results/logs",
-                logging_steps=10,
-                eval_accumulation_steps=10,
-                gradient_accumulation_steps=16,
-                eval_on_start=True,
-                # torch_empty_cache_steps=5,
-            )
+            model = MixtralForCausalLM.from_pretrained(model_name, cache_dir=cache_model_dir)
+
+            # get_heat_map_model(model)
+            # exit(0)
+            model.config.output_router_logits = True
+            model.generation_config.pad_token_id = model.generation_config.eos_token_id
+            model.model.random_layer = l
+
+            optimizer_params = [{'params': layer.block_sparse_moe.gate.parameters()} for layer in model.model.layers]
+
+            # model = torch.nn.DataParallel(model)
+
             # Initialize the Trainer
             trainer = Trainer(
-                optimizers=(
-                torch.optim.AdamW([{'params': model.model.layers[0].block_sparse_moe.gate.parameters()}], lr=0.0), None),
+                optimizers=(torch.optim.AdamW(optimizer_params, lr=1e-4), None),
                 model=model,
                 args=training_args,
                 train_dataset=train_tokenized_dataset,
                 eval_dataset=test_tokenized_dataset,
                 tokenizer=tokenizer,
-                data_collator=DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
+                data_collator=DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False),
+                compute_metrics=compute_metrics,
             )
 
-            print(f"model device: {model.device}")
+            # expert1_layer1 = model.model.layers[1].block_sparse_moe.experts[0].w1.weight.cpu().clone()
+            # gate_layer1    = model.model.layers[1].block_sparse_moe.gate.weight.cpu().clone()
+            # lm_head_layer  = model.lm_head.weight.cpu().clone()
+
+            # text = "An attention function can be described as mapping a query and a set of key-value pairs to an output, where the query, keys, values, and output are all vectors. The output is"
+            # inputs = tokenizer(text, return_tensors="pt")
+            # model.eval()
+            # outputs = model.generate(**inputs.to(model.device), max_new_tokens=100, output_router_logits=True)
+            #
+            # result = tokenizer.decode(outputs[0], skip_special_tokens=True)
+            # print(result)
+
             # Train the model
+            # print(f"model device: {model.device}")
             trainer.train()
+
+            # expert1_layer1_after = model.model.layers[1].block_sparse_moe.experts[0].w1.weight
+            # gate_layer1_after = model.model.layers[1].block_sparse_moe.gate.weight
+            # lm_head_layer_after = model.lm_head.weight
+
+            # print(torch.equal(expert1_layer1, expert1_layer1_after))
+            # print(torch.equal(gate_layer1, gate_layer1_after))
+            # print(torch.equal(lm_head_layer, lm_head_layer_after))
+            #
+            #
+            # trainer.train()
         except torch.cuda.OutOfMemoryError as e:
-            print(e)
+            print(traceback.format_exc())
+            print(get_gpu_free_memory())
             continue
 
     # # Evaluate the model

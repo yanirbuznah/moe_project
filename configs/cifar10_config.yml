@@ -1,10 +1,10 @@
 log:
-  wandb_project_name:  cifar10_and_svhn_base_resnet_10_runs_moe #pretrained_experts_experiment # hingeLoss_combinations_losses1 #DeepSeek_regret_based_cifar10_parameters_search # linear_balancing_resnet_cifar10_experiment_detached_experts
+  wandb_project_name:  cifar10_runs_moe #pretrained_experts_experiment # hingeLoss_combinations_losses1 #DeepSeek_regret_based_cifar10_parameters_search # linear_balancing_resnet_cifar10_experiment_detached_experts
   experiment_name: train_from_scratch_imagenet
   experiment_description: dummy_description
 
 
-dataloader: !include dataloader_configs/cifar10_and_svhn_dataloader_config.yml
+dataloader: !include dataloader_configs/cifar10_dataloader_config.yml
 scheduler: true
 model:
   model: !include model_configs/resnet18_model_config.yml
@@ -15,8 +15,8 @@ model:
 
 
 metrics:
-    - SuperClassConfusionMatrix
-#    - MOEConfusionMatrix
+#    - SuperClassConfusionMatrix
+    - MOEConfusionMatrix
 #    - ConfusionMatrix
 #    -
     - Accuracy
@@ -27,7 +27,7 @@ metrics:
     - RouterVsRandomAcc
 #    - ExpertEntropy
     - Consistency
-    - Specialization
+#    - Specialization
     - DeadExperts
     - AccuracyDiff
 

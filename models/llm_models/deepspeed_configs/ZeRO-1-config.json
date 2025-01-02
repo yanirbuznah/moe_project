@@ -1,0 +1,7 @@
+{
+    "zero_optimization": {
+        "stage": 1
+    },
+    "is_deepspeed_zero3_enabled":true,
+    "num_processes": 1
+}
