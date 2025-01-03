@@ -1,9 +1,9 @@
 import traceback
 import sys
-sys.path.append('/home/dsi/buznahy/moe_project/models/llm_models')
-from utils.utils import compute_perplexity
-# from models.llm_models.utils import compute_perplexity
-from utils.cuda_utils import get_gpu_free_memory
+# sys.path.append('/home/dsi/buznahy/moe_project/models/llm_models')
+# from utils.utils import compute_perplexity
+# from models.llm_models.utils.utils import compute_perplexity
+# from models.llm_models.utils.cuda_utils import get_gpu_free_memory
 
 # coding=utf-8
 # Copyright 2023 Mistral AI and the HuggingFace Inc. team. All rights reserved.
@@ -31,6 +31,9 @@ import os
 from typing import List, Optional, Tuple, Union
 
 import numpy as np
+import torch
+
+torch.set_float32_matmul_precision('high')
 import torch.nn.functional as F
 import torch.utils.checkpoint
 import wandb
@@ -1791,8 +1794,105 @@ def wait_to_gpu(gpu_memory_size=100, waiting_interval=600, num_of_tries=60):
     return False
 
 
-if __name__ == '__main__':
-    from deepspeed_configs.get_deepspeed_config import get_deepspeed_config
+import os
+import time
+import traceback
+import torch
+from transformers import AutoTokenizer, DataCollatorForLanguageModeling, TrainingArguments
+from datasets import load_dataset
+import pytorch_lightning as pl
+from pytorch_lightning import Trainer
+from pytorch_lightning.callbacks import ModelCheckpoint
+from transformers import MixtralForCausalLM
+
+
+# Define the LightningModule
+class MixtralLightningModule(pl.LightningModule):
+    def __init__(self, model_name, cache_model_dir, learning_rate=1e-4):
+        super().__init__()
+        self.model = MixtralForCausalLM.from_pretrained(model_name, cache_dir=cache_model_dir, local_files_only=True)
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name, cache_dir=cache_model_dir, local_files_only=True)
+        self.tokenizer.pad_token = self.tokenizer.eos_token
+        self.learning_rate = learning_rate
+
+    def forward(self, input_ids, attention_mask=None, labels=None):
+        return self.model(input_ids, attention_mask=attention_mask, labels=labels)
+
+    def training_step(self, batch, batch_idx):
+        outputs = self(**batch)
+        loss = outputs.loss
+        self.log('train_loss', loss)
+        return loss
+
+    def validation_step(self, batch, batch_idx):
+        outputs = self(**batch)
+        val_loss = outputs.loss
+        self.log('val_loss', val_loss)
+        return val_loss
+
+    def configure_optimizers(self):
+        optimizer_params = [{'params': layer.block_sparse_moe.gate.parameters()} for layer in self.model.model.layers]
+
+        optimizer = torch.optim.AdamW(optimizer_params, lr=self.learning_rate)
+        return optimizer
+
+
+def main_lightning():
+    # Load datasets
+    base_path = "/data/users/buznahy/" if os.path.exists("/data/users/buznahy/") else "/home/dsi/buznahy/"
+    cache_model_dir = f"{base_path}mistralai/Mixtral-8x7B-v0.1"
+    model_name = "mistralai/Mixtral-8x7B-v0.1"
+
+    tokenizer = AutoTokenizer.from_pretrained(model_name, cache_dir=cache_model_dir)
+    tokenizer.pad_token = tokenizer.eos_token
+
+    test_open_orca_ds = load_dataset("Open-Orca/OpenOrca", split="train[:1000]",
+                                     cache_dir=f"{base_path}/datasets/train_size_1_test_size_1000_length_256")
+    train_open_orca_ds = load_dataset("Open-Orca/OpenOrca", split="train[0:1]",
+                                      cache_dir=f"{base_path}/datasets/train_size_1_test_size_1000_length_256")
+
+    test_tokenized_dataset = test_open_orca_ds.map(lambda x:
+                                                   tokenizer(
+                                                       x['question'],
+                                                       x['response'],
+                                                       truncation=True,
+                                                       padding='max_length',
+                                                       max_length=20,
+                                                   ),
+                                                   cache_file_name=f'{base_path}deepseek/cache/test_size_1000_length_20')
+    train_tokenized_dataset = train_open_orca_ds.map(lambda x:
+                                                     tokenizer(
+                                                         x['question'],
+                                                         x['response'],
+                                                         truncation=True,
+                                                         padding='max_length',
+                                                         max_length=20
+                                                     ),
+                                                     cache_file_name=f'{base_path}deepseek/cache/train_size_1_length_20')
+
+    # Define the DataLoader
+    train_dataloader = torch.utils.data.DataLoader(train_tokenized_dataset, batch_size=1, shuffle=True)
+    val_dataloader = torch.utils.data.DataLoader(test_tokenized_dataset, batch_size=1)
+
+    # Initialize the LightningModule
+    model = MixtralLightningModule(model_name, cache_model_dir)
+
+    # Define the PyTorch Lightning Trainer
+    trainer = Trainer(
+        precision=16,
+        max_epochs=1,
+        devices="auto",  # 4 if torch.cuda.is_available() else 0,
+        accelerator="gpu" if torch.cuda.is_available() else "cpu",
+        callbacks=[ModelCheckpoint(monitor='val_loss')],
+        accumulate_grad_batches=2,
+            strategy="ddp",
+    )
+
+    # Train the model
+    trainer.fit(model, train_dataloader, val_dataloader)
+
+
+def main():
     print("Free GPU memory: ", get_gpu_free_memory())
     import time
     # time.sleep(60*60*6)
@@ -1860,93 +1960,51 @@ if __name__ == '__main__':
         # torch_empty_cache_steps=5,
     )
 
-
     def compute_metrics(eval_pred):
         logits, labels = eval_pred
         return {"perplexity": compute_perplexity(logits[0])}
 
-
     # 4, 8,20,
-    for l in [0]:
-        try:
-            if wait_to_gpu():
-                device = "auto"
-            else:
-                device = "cpu"
-                training_args.use_cpu = True
+    # for l in [0]:
+    try:
+        if wait_to_gpu():
+            device = "auto"
+        else:
+            device = "cpu"
+            training_args.use_cpu = True
 
-            model = MixtralForCausalLM.from_pretrained(model_name, cache_dir=cache_model_dir)
+        model = MixtralForCausalLM.from_pretrained(model_name, cache_dir=cache_model_dir)
 
-            # get_heat_map_model(model)
-            # exit(0)
-            model.config.output_router_logits = True
-            model.generation_config.pad_token_id = model.generation_config.eos_token_id
-            model.model.random_layer = l
+        # get_heat_map_model(model)
+        # exit(0)
+        model.config.output_router_logits = True
+        model.generation_config.pad_token_id = model.generation_config.eos_token_id
+        # model.model.random_layer = l
 
-            optimizer_params = [{'params': layer.block_sparse_moe.gate.parameters()} for layer in model.model.layers]
+        optimizer_params = [{'params': layer.block_sparse_moe.gate.parameters()} for layer in model.model.layers]
 
-            # model = torch.nn.DataParallel(model)
+        # model = torch.nn.DataParallel(model)
 
-            # Initialize the Trainer
-            trainer = Trainer(
-                optimizers=(torch.optim.AdamW(optimizer_params, lr=1e-4), None),
-                model=model,
-                args=training_args,
-                train_dataset=train_tokenized_dataset,
-                eval_dataset=test_tokenized_dataset,
-                tokenizer=tokenizer,
-                data_collator=DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False),
-                compute_metrics=compute_metrics,
-            )
+        # Initialize the Trainer
+        trainer = Trainer(
+            optimizers=(torch.optim.AdamW(optimizer_params, lr=1e-4), None),
+            model=model,
+            args=training_args,
+            train_dataset=train_tokenized_dataset,
+            eval_dataset=test_tokenized_dataset,
+            tokenizer=tokenizer,
+            data_collator=DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False),
+            compute_metrics=compute_metrics,
+        )
+        trainer.train()
 
-            # expert1_layer1 = model.model.layers[1].block_sparse_moe.experts[0].w1.weight.cpu().clone()
-            # gate_layer1    = model.model.layers[1].block_sparse_moe.gate.weight.cpu().clone()
-            # lm_head_layer  = model.lm_head.weight.cpu().clone()
+    except torch.cuda.OutOfMemoryError as e:
+        print(traceback.format_exc())
+        print(get_gpu_free_memory())
 
-            # text = "An attention function can be described as mapping a query and a set of key-value pairs to an output, where the query, keys, values, and output are all vectors. The output is"
-            # inputs = tokenizer(text, return_tensors="pt")
-            # model.eval()
-            # outputs = model.generate(**inputs.to(model.device), max_new_tokens=100, output_router_logits=True)
-            #
-            # result = tokenizer.decode(outputs[0], skip_special_tokens=True)
-            # print(result)
 
-            # Train the model
-            # print(f"model device: {model.device}")
-            trainer.train()
-
-            # expert1_layer1_after = model.model.layers[1].block_sparse_moe.experts[0].w1.weight
-            # gate_layer1_after = model.model.layers[1].block_sparse_moe.gate.weight
-            # lm_head_layer_after = model.lm_head.weight
-
-            # print(torch.equal(expert1_layer1, expert1_layer1_after))
-            # print(torch.equal(gate_layer1, gate_layer1_after))
-            # print(torch.equal(lm_head_layer, lm_head_layer_after))
-            #
-            #
-            # trainer.train()
-        except torch.cuda.OutOfMemoryError as e:
-            print(traceback.format_exc())
-            print(get_gpu_free_memory())
-            continue
-
-    # # Evaluate the model
-    # eval_results = trainer.evaluate()
-    # print(f"Average evaluation loss: {eval_results['eval_loss']}")
-    #
-    # # print(f"model device: {model.device}")
-    # # # Train the model
-    # # trainer.train()
-    #
-    # expert1_layer1_after = model.model.layers[1].block_sparse_moe.experts[0].w1.weight
-    # gate_layer1_after = model.model.layers[1].block_sparse_moe.gate.weight
-    # lm_head_layer_after = model.layers[1].lm_head.weight
-    #
-    # print(torch.equal(expert1_layer1, expert1_layer1_after))
-    # print(torch.equal(gate_layer1, gate_layer1_after))
-    # print(torch.equal(lm_head_layer1, lm_head_layer_after))
-    # print(torch.equal(lm_head, lm_head_after))
-    #
-    # # Evaluate the model
-    # eval_results = trainer.evaluate()
-    # print(f"Average evaluation loss: {eval_results['eval_loss']}")
+if __name__ == '__main__':
+    if sys.argv[1] == "lightning":
+        main_lightning()
+    else:
+        main()
