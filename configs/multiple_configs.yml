@@ -7,72 +7,86 @@ changes:
           MixtureOfExpertLoss:
             losses
     options:
-      - - !include loss_configs/cross_entropy_loss_config.yml
-##        - !include loss_configs/consistency_loss_config.yml
-#
-      - - !include loss_configs/cross_entropy_loss_config.yml
-        - !include loss_configs/cross_entropy_routing_loss_config.yml
+      #      - - !include loss_configs/cross_entropy_loss_config.yml
+      #        - !include loss_configs/consistency_loss_config.yml
+      #
+      #      - - !include loss_configs/cross_entropy_loss_config.yml
+      #        - !include loss_configs/cross_entropy_routing_loss_config.yml
 
-      - - !include loss_configs/cross_entropy_loss_config.yml
-        - !include loss_configs/switch_load_balancing_loss_config.yml
-#
-      - - !include loss_configs/cross_entropy_loss_config.yml
-        - !include loss_configs/regret_base_loss_config.yml
+      #      - - !include loss_configs/cross_entropy_loss_config.yml
+      #        - !include loss_configs/switch_load_balancing_loss_config.yml
+      #
+      #- - !include loss_configs/cross_entropy_loss_config.yml
+      #       - !include loss_configs/regret_base_loss_config.yml
+      #
+      #      - - !include loss_configs/cross_entropy_loss_config.yml
+      #        - !include loss_configs/switch_load_balancing_loss_config.yml
+      #        - !include loss_configs/regret_base_loss_config.yml
 
-      - - !include loss_configs/cross_entropy_loss_config.yml
-        - !include loss_configs/switch_load_balancing_loss_config.yml
-        - !include loss_configs/regret_base_loss_config.yml
+#        - - !include loss_configs/cross_entropy_loss_config.yml
+#          - !include loss_configs/switch_load_balancing_loss_config.yml
+#          - !include loss_configs/cross_entropy_routing_loss_config.yml
 
-      - - !include loss_configs/cross_entropy_loss_config.yml
-        - !include loss_configs/switch_load_balancing_loss_config.yml
-        - !include loss_configs/cross_entropy_routing_loss_config.yml
+      #      - - !include loss_configs/cross_entropy_loss_config.yml
+      #        - RegretBaseLoss:
+      #            name: RegretBaseLoss
+      #            type: RegretBaseLoss
+      #            params:
+      #              k: 2
+      #              detach_experts_grad: true
+      ##      - - !include loss_configs/cross_entropy_loss_config.yml
+      ##        - RegretBaseLoss:
+      ##            name: RegretBaseLoss
+      ##            type: RegretBaseLoss
+      ##            params:
+      ##              k: 2
+      ##              detach_experts_grad: true
+      ##      - - !include loss_configs/switch_load_balancing_loss_config.yml
+      ##
+      #      - - !include loss_configs/cross_entropy_loss_config.yml
+      #        - RegretBaseLoss:
+      #            name: RegretBaseLoss
+      #            type: RegretBaseLoss
+      #            params:
+      #              k: 4
+      #              detach_experts_grad: true
+      #        - !include loss_configs/switch_load_balancing_loss_config.yml
+      #      #        - !include loss_configs/switch_load_balancing_loss_config.yml
 
-#      - - !include loss_configs/cross_entropy_loss_config.yml
-#        - RegretBaseLoss:
-#            name: RegretBaseLoss
-#            type: RegretBaseLoss
-#            params:
-#              k: 2
-#              detach_experts_grad: true
-##      - - !include loss_configs/cross_entropy_loss_config.yml
-##        - RegretBaseLoss:
-##            name: RegretBaseLoss
-##            type: RegretBaseLoss
-##            params:
-##              k: 2
-##              detach_experts_grad: true
-##      - - !include loss_configs/switch_load_balancing_loss_config.yml
-##
-#      - - !include loss_configs/cross_entropy_loss_config.yml
-#        - RegretBaseLoss:
-#            name: RegretBaseLoss
-#            type: RegretBaseLoss
-#            params:
-#              k: 4
-#              detach_experts_grad: true
-#        - !include loss_configs/switch_load_balancing_loss_config.yml
-#      #        - !include loss_configs/switch_load_balancing_loss_config.yml
+      #        - !include loss_configs/switch_load_balancing_loss_config.yml
 
-#        - !include loss_configs/switch_load_balancing_loss_config.yml
+      #        - !include loss_configs/rank_correlation_loss_config.yml
 
-#        - !include loss_configs/rank_correlation_loss_config.yml
+      #      - - !include loss_configs/cross_entropy_loss_config.yml
+      #      - - !include loss_configs/expertise_loss_config.yml
+      #
+      #      - - !include loss_configs/cross_entropy_loss_config.yml
+      #      - - !include loss_configs/rank_correlation_loss_config.yml
+      #      - - !include loss_configs/cross_entropy_loss_config.yml
+      #        - !include loss_configs/switch_load_balancing_loss_config.yml
+      #      - - !include loss_configs/cross_entropy_loss_config.yml
+      #      - - !include loss_configs/consistency_loss_config.yml
+      #        - !include loss_configs/specialization_loss_config.yml
+      #      - - !include loss_configs/cross_entropy_routing_loss_config.yml
+      #        - !include loss_configs/cross_entropy_loss_config.yml
+      #      - - !include loss_configs/cross_entropy_loss_config.yml
+      #      - - !include loss_configs/hinge_balancing_loss_config.yml
+      #        - !include loss_configs/cross_entropy_routing_loss_config.yml
 
-#      - - !include loss_configs/cross_entropy_loss_config.yml
-#      - - !include loss_configs/expertise_loss_config.yml
-#
-#      - - !include loss_configs/cross_entropy_loss_config.yml
-#      - - !include loss_configs/rank_correlation_loss_config.yml
-#      - - !include loss_configs/cross_entropy_loss_config.yml
-#        - !include loss_configs/switch_load_balancing_loss_config.yml
-#      - - !include loss_configs/cross_entropy_loss_config.yml
-#      - - !include loss_configs/consistency_loss_config.yml
-#        - !include loss_configs/specialization_loss_config.yml
-#      - - !include loss_configs/cross_entropy_routing_loss_config.yml
-#        - !include loss_configs/cross_entropy_loss_config.yml
-#      - - !include loss_configs/cross_entropy_loss_config.yml
-#      - - !include loss_configs/hinge_balancing_loss_config.yml
-#        - !include loss_configs/cross_entropy_routing_loss_config.yml
-
+#        - - !include loss_configs/cross_entropy_loss_config.yml
+#          - !include loss_configs/switch_load_balancing_loss_config.yml
+#          - DiversityLoss:
+#              name: DiversityLoss
+#              type: DiversityLoss
+#              params:
+#                full_model_parameters: False
+        - - !include loss_configs/cross_entropy_loss_config.yml
+          - !include loss_configs/switch_load_balancing_loss_config.yml
+#          - DiversityLoss:
+#              name: DiversityLoss
+#              type: DiversityLoss
+#              params:
+#                full_model_parameters: True
 
 
   - key:
@@ -81,31 +95,43 @@ changes:
           MixtureOfExpertLoss:
             weights
     options:
-      - [1., 1., 1.]
-#      - [1., 1., 0.1]
-#      - [1. , 0.1, 1.]
+      - [ 1., 1., 1. ]
+      - [ 1., 0.1, 0.1 ]
+      - [ 1., 0.01, .1 ]
+#      - [ 1., 0.1, 1. ]
 
   - key:
-        scheduler
+      scheduler
     options:
-      - false
-#      - true
+      #- false
+      - true
 
-#  - key:
-#      model:
-#        model:
-#          router:
-#            action_assignment_strategy
-#    options:
-#      - none
-##      - LinearAssignmentWithCapacity
-##      - LinearAssignmentByDiff
-##      - BaseLinearAssignment
+  #  - key:
+  #      model:
+  #        model:
+  #          router:
+  #            action_assignment_strategy
+  #    options:
+  #      - none
+  ##      - LinearAssignmentWithCapacity
+  ##      - LinearAssignmentByDiff
+  ##      - BaseLinearAssignment
   - key:
       model:
         model:
           alternate
     options:
       - 0
-#      - 2
-#      - 5
+  #        - 2
+  #      - 5
+
+
+#  - key:
+#      model:
+#        lr
+#    options:
+#      - !!float 0.05
+#      - !!float 0.005
+#      - !!float 0.001
+#      - !!float 0.01
+#      - !!float 0.1

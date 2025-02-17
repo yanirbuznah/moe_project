@@ -2,8 +2,32 @@ import logging
 from collections import namedtuple
 
 import numpy as np
+from wandb.integration.torch.wandb_torch import torch
 
 from .utils import *
+
+
+class OptimizerWrapper(torch.optim.Optimizer):
+    def __init__(self, optimizers):
+        self.optimizers = optimizers
+
+    def zero_grad(self):
+        for optimizer in self.optimizers:
+            optimizer.zero_grad()
+
+    def step(self):
+        for optimizer in self.optimizers:
+            optimizer.step()
+
+    def state_dict(self):
+        return [optimizer.state_dict() for optimizer in self.optimizers]
+
+    def load_state_dict(self, state_dict):
+        for optimizer, state in zip(self.optimizers, state_dict):
+            optimizer.load_state_dict(state)
+
+
+
 
 
 class Model(nn.Module):
@@ -15,7 +39,11 @@ class Model(nn.Module):
         self.train_loader = train_loader
         self.test_loader = test_loader
         self.model = get_model(model_config, train_set=train_loader.dataset)
-        self.optimizer = get_optimizer(self.model, model_config.get('optimizer'), model_config.get('lr'))
+        self.optimizer_exp = get_optimizer(self.model.experts, 'SGD', 0.1)
+        self.optimizer_router = get_optimizer(self.model.router, 'adam', 0.001)
+
+        self.optimizer = OptimizerWrapper([self.optimizer_exp, self.optimizer_router])
+
         self.criterion = get_loss(model_config.get('loss'))
         self.criterion.model = self.model
         self.metrics = get_metrics(config.get('metrics'), train_loader.dataset.get_number_of_active_classes())

@@ -7,7 +7,6 @@ from datetime import datetime
 from itertools import product
 from pprint import pformat
 
-import numpy as np
 # Load model directly
 import pandas as pd
 
@@ -39,13 +38,13 @@ def run_experiment(config, run=None):
                 df = pd.read_csv(run_summary_path) if os.path.exists(run_summary_path) else pd.DataFrame()
 
                 new_row = {'id': run.id, 'start_time': datetime.fromtimestamp(run.start_time), 'dir': run.dir,
-                                'link': run.get_url(), 'criterion': str(experiment.model.criterion),
-                                'project_name': config['log'].get('wandb_project_name', None),
-                                'experiment_name': config['log']['experiment_name'],
-                                'dataset': config['dataloader']['dataset'],
-                                'accuracy': run.summary.get('max.validate.Accuracy', 0),
-                                'min_loss': run.summary.get('min.validate.Loss', -1),
-                                'comments': ''}
+                           'link': run.get_url(), 'criterion': str(experiment.model.criterion),
+                           'project_name': config['log'].get('wandb_project_name', None),
+                           'experiment_name': config['log']['experiment_name'],
+                           'dataset': config['dataloader']['dataset'],
+                           'accuracy': run.summary.get('max.validate.Accuracy', 0),
+                           'min_loss': run.summary.get('min.validate.Loss', -1),
+                           'comments': ''}
                 pd.concat([df, pd.DataFrame([new_row])], ignore_index=True).to_csv(run_summary_path, index=False)
         acc = run.summary.get('max.validate.Accuracy', 0)
         Logger.shutdown(experiment.experiment_path)
@@ -84,9 +83,8 @@ def main():
             # Initialize wandb if project name is provided
             if wandb_project_name is not None:
                 # wandb.debug = True
-                run = wandb.init(project=wandb_project_name, config=config)
-                run.log_code(include_fn=lambda path: path.endswith(".py") or path.endswith(".yml"))
-
+                run = wandb.init(project=wandb_project_name, config=config, save_code=True,
+                                 dir="/data/users/buznahy/moe_project")
 
             # Run the experiment with the current configuration
             acc = run_experiment(config, run)
@@ -97,7 +95,7 @@ def main():
         return experiments_acc
     else:
         if wandb_project_name is not None:
-            run = wandb.init(project=wandb_project_name, config=config)
+            run = wandb.init(project=wandb_project_name, config=config, save_code=True, dir="/data/users/buznahy/moe_project")
         return [run_experiment(config, run)]
 
 

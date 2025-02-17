@@ -2,7 +2,8 @@ from metrics import *
 from metrics.ClassificationMetric import ClassificationMetric
 from metrics.MOEMetric import MOEMetric, PValue, MOEConfusionMatrix, RouterVSRandomAcc, \
     ExpertEntropy, SuperClassEntropy, SuperClassConfusionMatrix, Consistency, Specialization, NewSpecialization, \
-    DeadExperts, AccuracyDiff, SpearmanCorrelation
+    DeadExperts, AccuracyDiff, SpearmanCorrelation, DeadExpertsNormalized, DeadExpertsSparsed, \
+    SuperClassConfusionMatrixNormalized, MOEConfusionMatrixNormalized, MH, SuperClassMH
 from models.MOE import MixtureOfExperts
 
 
@@ -30,6 +31,7 @@ class MetricsFactory:
                 self.metrics_list.append(PValue())
             elif metric.lower() == 'moeconfusionmatrix':
                 self.metrics_list.append(MOEConfusionMatrix())
+                self.metrics_list.append(MOEConfusionMatrixNormalized())
             elif metric.lower() == 'routervsrandomacc':
                 self.metrics_list.append(RouterVSRandomAcc())
             elif metric.lower() == 'expertentropy':
@@ -38,6 +40,7 @@ class MetricsFactory:
                 self.metrics_list.append(SuperClassEntropy())
             elif metric.lower() == 'superclassconfusionmatrix':
                 self.metrics_list.append(SuperClassConfusionMatrix())
+                self.metrics_list.append(SuperClassConfusionMatrixNormalized())
             elif metric.lower() == 'consistency':
                 self.metrics_list.append(Consistency())
             elif metric.lower() == 'specialization':
@@ -46,9 +49,14 @@ class MetricsFactory:
                 self.metrics_list.append(NewSpecialization())
             elif metric.lower() == 'deadexperts':
                 self.metrics_list.append(DeadExperts())
+                self.metrics_list.append(DeadExpertsNormalized())
+                self.metrics_list.append(DeadExpertsSparsed())
             elif metric.lower() == 'accuracydiff':
                 self.metrics_list.append(SpearmanCorrelation())
-
+            elif metric.lower() == 'mh':
+                self.metrics_list.append(MH())
+            elif metric.lower() == 'superclassmh':
+                self.metrics_list.append(SuperClassMH())
             # else:
             #     self.metrics_list.append(MOEMetric())
             else:

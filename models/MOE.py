@@ -23,7 +23,8 @@ class MixtureOfExperts(nn.Module):
         self.output_shape = output_size
         self.input_shape_router = model_config.get('input_shape_router', self.input_shape)
         self.experts = nn.ModuleList(
-            [utils.get_model(model_config['expert'], train_set=train_set) for _ in range(self.num_experts + self.num_backbone_experts)])
+            [utils.get_model(model_config['expert'], train_set=train_set) for _ in
+             range(self.num_experts + self.num_backbone_experts)])
         if model_config.get('softmax', False) and not isinstance(list(self.experts[0].modules())[-1], nn.Softmax):
             self.softmax = nn.Softmax(dim=-1)
         else:
@@ -34,6 +35,10 @@ class MixtureOfExperts(nn.Module):
                                        output_shape=self.input_shape_router) if model_config.get('encoder',
                                                                                                  False) else nn.Identity()
         self.initial_routing_phase = True
+
+        self.router_bias = nn.Parameter(torch.zeros(self.num_experts)) if model_config.get('router_bias',
+                                                                                           False) else None
+
         # self.experts[0].load_state_dict(torch.load('/home/dsi/buznahy/moe_project/chekpoints/model_svhn.pt'))
         # self.experts[1].load_state_dict(torch.load('/home/dsi/buznahy/moe_project/chekpoints/model_cifar10.pt'))
 
@@ -43,14 +48,16 @@ class MixtureOfExperts(nn.Module):
 
     def init_routers(self):
         if isinstance(self.router_config, list):
-            self.routers = [utils.get_router(self,config) for config in self.router_config]
+            self.routers = [utils.get_router(self, config) for config in self.router_config]
             self.current_router_config = self.router_config[0]
             for r in self.routers:
                 if isinstance(r, nn.Module):
-                    self.register_module('router',r)
+                    self.register_module('router', r)
                     r.to(self.device)
             self.unsupervised_router = not self.router_config[0]['supervised']
-            self.assignment_function = action_assignment_strategy(self.current_router_config.get('action_assignment_strategy', None))
+            self.assignment_function = action_assignment_strategy(
+                self.current_router_config.get('action_assignment_strategy', None)
+                , num_experts=self.num_experts)
             self.router = self.routers[0]
             self.router_softmax = nn.Identity() if isinstance(list(self.router.modules())[-1],
                                                               nn.Softmax) else nn.Softmax(dim=-1)
@@ -58,14 +65,17 @@ class MixtureOfExperts(nn.Module):
             self.init_router(self.router_config)
             self.current_router_config = self.router_config
 
-    def init_router(self, config:dict):
+    def init_router(self, config: dict):
         self.unsupervised_router = not config['supervised']
-        self.assignment_function = action_assignment_strategy(config.get('action_assignment_strategy', None))
+        self.assignment_function = action_assignment_strategy(config.get('action_assignment_strategy', None),
+                                                              num_experts=self.num_experts)
         self.router = utils.get_router(self, config)
+        if config['model_config'].get('init_to_zero', False):
+            torch.nn.init.zeros_(self.router.fc.weight)
+            torch.nn.init.zeros_(self.router.fc.bias)
         if not self.unsupervised_router:
             self.router_softmax = nn.Identity() if isinstance(list(self.router.modules())[-1],
                                                               nn.Softmax) else nn.Softmax(dim=-1)
-
 
     def to(self, device):
         self.experts.to(device)
@@ -126,8 +136,9 @@ class MixtureOfExperts(nn.Module):
         routes_logits = self.supervised_router_step(x)
         routes_probs = self.router_softmax(routes_logits)
         router_probs_max = torch.max(routes_probs, dim=1).values
+
         if self.initial_routing_phase:
-            routes = torch.randint(0,self.num_experts, size=[x.shape[0]])
+            routes = torch.randint(0, self.num_experts, size=[x.shape[0]])
         else:
             routes = self.assignment_function(routes_logits)
 
@@ -215,7 +226,6 @@ class MixtureOfExperts(nn.Module):
                 traceback.print_exc()
                 raise e
 
-
     def change_router(self, to):
         self.current_router = to
         try:
@@ -224,7 +234,8 @@ class MixtureOfExperts(nn.Module):
             self.router_config = self.config['model']['router'][0]
             logging.error('Router index out of range, using default router')
         self.unsupervised_router = not self.router_config['supervised']
-        self.assignment_function = action_assignment_strategy(self.router_config.get('action_assignment_strategy', None))
+        self.assignment_function = action_assignment_strategy(
+            self.router_config.get('action_assignment_strategy', None))
         self.router = self.routers[to]
         self.current_router_config = self.router_config[to]
         if not self.unsupervised_router:

@@ -53,8 +53,12 @@ def get_transforms_from_dict(transforms_dict_config: dict, train) -> transforms.
             transforms_list.append(transforms.Normalize(**transform_params))
         elif transform_name == 'Resize':
             transforms_list.append(transforms.Resize(**transform_params))
+        elif transform_name == 'CenterCrop':
+            transforms_list.append(transforms.CenterCrop(**transform_params))
         elif not train:  # TODO: Check if this is the right way to do this.
             continue  # Skip all the augmentations if not training, except for ToTensor and Normalize.
+        elif transform_name == 'GaussianBlur':
+            transforms_list.append(transforms.GaussianBlur(**transform_params))
         elif transform_name == 'augmentations':
             transforms_list += get_transform_from_list(transform_params['transforms'])
         else:
@@ -95,27 +99,7 @@ def get_transform_from_list(transforms_list_config: list) -> list:
                                        transform['hue']))
         elif transform['type'] == 'RandomGrayscale':
             transforms_list.append(transforms.RandomGrayscale(transform['p']))
+
         else:
             raise NotImplementedError(f"Transform {transform['type']} not implemented")
     return transforms_list
-
-
-def get_model(model_config: dict, input_shape, output_shape):
-    if model_config['type'] == 'resnet18':
-        model = torchvision.models.resnet18(num_classes=output_shape)
-        model.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
-        model.maxpool = nn.Identity()
-        return model
-    else:
-        raise NotImplementedError(f"Model {model_config['type']} not implemented")
-
-
-def get_optimizer(model: nn.Module, optimizer: str = None, lr: float = None):
-    if optimizer is None or optimizer.lower() == 'adam':
-        return torch.optim.Adam(model.parameters(), lr=lr) if lr is not None else torch.optim.Adam(model.parameters())
-    elif optimizer.lower() == 'sgd':
-        if lr is None:
-            raise ValueError("Learning rate is required for SGD optimizer")
-        return torch.optim.SGD(model.parameters(), lr=lr)
-    else:
-        raise NotImplementedError(f"Optimizer {optimizer} not implemented")

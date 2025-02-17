@@ -1865,23 +1865,64 @@ class SwitchTransformersEncoderModel(SwitchTransformersPreTrainedModel):
 
         return encoder_outputs
 
+
+
+
+def train():
+    from transformers import AutoTokenizer, SwitchTransformersForConditionalGeneration
+    import torch
+
+    tokenizer = AutoTokenizer.from_pretrained("google/switch-base-8")
+    model = SwitchTransformersForConditionalGeneration.from_pretrained("google/switch-base-8")
+
+    # training
+    input_ids = tokenizer("The <extra_id_0> walks in <extra_id_1> park", return_tensors="pt").input_ids
+    labels = tokenizer("<extra_id_0> cute dog <extra_id_1> the <extra_id_2>", return_tensors="pt").input_ids
+    outputs = model(input_ids=input_ids, labels=labels)
+    loss = outputs.loss
+    logits = outputs.logits
+
+    # inference
+    input_ids = tokenizer(
+        "summarize: studies have shown that owning a dog is good for you", return_tensors="pt"
+    ).input_ids  # Batch size 1
+    outputs = model.generate(input_ids)
+    # . To, let’s say you have a dog. To summarize:
+    # Since the model has been trained on MLM, this will output gibberish
+
+
+
+
+
+
+
 from transformers import AutoTokenizer, SwitchTransformersEncoderModel
 
-tokenizer = AutoTokenizer.from_pretrained("google/switch-base-128")
-model = AutoModelForSeq2SeqLM.from_pretrained("google/switch-base-128").to('cuda:0')
-input_ids = tokenizer(
-    "Studies have been shown that <extra_id_0> a dog is good for you",
-    return_tensors="pt"
-).input_ids # Batch size 1
-outputs = model(input_ids=input_ids.to('cuda:0'))
-last_hidden_states = outputs.last_hidden_state
-print(tokenizer.decode(outputs.last_hidden_state.argmax(-1).squeeze().tolist()))
-
 # tokenizer = AutoTokenizer.from_pretrained("google/switch-base-128")
-# model =   SwitchTransformersEncoderModel.from_pretrained("google/switch-base-128", device_map='auto')
-#
-# input_text = "Write me a poem about Machine Learning."
-# input_ids = tokenizer(input_text, return_tensors="pt").to("cuda")
-#
-# outputs = model(**input_ids)
-# tokenizer.decode(outputs.last_hidden_state.argmax(-1).squeeze().tolist())
+# model = AutoModelForSeq2SeqLM.from_pretrained("google/switch-base-128")
+# input_ids = tokenizer(
+#     "Studies have been shown that <extra_id_0> a dog is good for you",
+#     return_tensors="pt"
+# ).input_ids # Batch size 1
+# outputs = model(input_ids=input_ids, output_hidden_states=True)
+# last_hidden_states = outputs.last_hidden_state
+# print(tokenizer.decode(outputs.last_hidden_state.argmax(-1).squeeze().tolist()))
+
+
+tokenizer = AutoTokenizer.from_pretrained("google/switch-base-8")
+model = SwitchTransformersForConditionalGeneration.from_pretrained("google/switch-base-8")
+
+# training
+input_ids = tokenizer("The <extra_id_0> walks in <extra_id_1> park", return_tensors="pt").input_ids
+labels = tokenizer("<extra_id_0> cute dog <extra_id_1> the <extra_id_2>", return_tensors="pt").input_ids
+outputs = model(input_ids=input_ids, labels=labels)
+loss = outputs.loss
+logits = outputs.logits
+
+# inference
+input_ids = tokenizer(
+    "summarize: studies have shown that owning a dog is good for you", return_tensors="pt"
+).input_ids  # Batch size 1
+outputs = model.generate(input_ids)
+# . To, let’s say you have a dog. To summarize:
+# Since the model has been trained on MLM, this will output gibberish

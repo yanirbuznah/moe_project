@@ -1,0 +1,28 @@
+log:
+  wandb_project_name:  cifar10_svhn_2_optimizers
+  experiment_name: cifar10_svhn_2_optimizers
+  experiment_description: cifar10_svhn_2_optimizers
+
+
+dataloader: !include dataloader_configs/cifar10_and_svhn_dataloader_config.yml
+scheduler: true
+model:
+  model: !include model_configs/resnet18_model_config.yml
+  loss: !include loss_configs/moe_loss_config.yml
+  optimizer: Adam
+  lr: !!float 0.001
+
+
+metrics:
+    - SuperClassConfusionMatrix
+    - Accuracy
+    - RouterVsRandomAcc
+    - Consistency
+    - DeadExperts
+    - AccuracyDiff
+    - MH
+    - SuperClassMH
+
+seed: 0
+epochs: 200
+

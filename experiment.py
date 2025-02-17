@@ -37,13 +37,16 @@ class Experiment:
                                            num_workers=config['dataloader']['num_workers'])
 
         self.classes = self.test_set.classes
-        # dummy_sample = self.test_set.get_mini_batch_after_transform_by_interval(32)
 
         self.model = Model(config, train_loader=self.train_loader, test_loader=self.test_loader).to(utils.device)
         # self.model.reset_parameters(dummy_sample.view(1, *dummy_sample.shape).to(utils.device))
         self._init_experiment_folder()
-        self.scheduler = torch.optim.lr_scheduler.StepLR(self.model.optimizer, step_size=20, gamma=0.5) if config.get(
+        self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer=self.model.optimizer_exp, T_max=200)  if config.get(
             'scheduler', False) else None
+        # self.scheduler = torch.optim.lr_scheduler.StepLR(self.model.optimizer, step_size=20, gamma=0.5) if config.get(
+        #     'scheduler', False) else None
+
+        print(self.scheduler)
         self.initialized = True
         self.dead_expert_epoch = 0
 
@@ -86,40 +89,40 @@ class Experiment:
             if 'MOEConfusionMatrix' in validate_evaluate_results.keys():
                 wandb_log_dict['validate.MOEConfusionMatrixHeatMap'] = (
                     wandb.plot_table('heatmap', wandb.Table(
-                    columns=list(map(str, validate_evaluate_results['MOEConfusionMatrix'].columns.values)),
-                    data=validate_evaluate_results['MOEConfusionMatrix'].values), {'x': 'columns', 'y': 'index',
+                    columns=list(map(str, validate_evaluate_results['MOEConfusionMatrixNormalized'].columns.values)),
+                    data=validate_evaluate_results['MOEConfusionMatrixNormalized'].values), {'x': 'columns', 'y': 'index',
                                                                                           'value': 'values'})
                 )
 
                 wandb_log_dict['train.MOEConfusionMatrixHeatMap'] =(
                     wandb.plot_table('heatmap', wandb.Table(
-                    columns=list(map(str, train_evaluate_results['MOEConfusionMatrix'].columns.values)),
-                    data=train_evaluate_results['MOEConfusionMatrix'].values), {'x': 'columns', 'y': 'index',
+                    columns=list(map(str, train_evaluate_results['MOEConfusionMatrixNormalized'].columns.values)),
+                    data=train_evaluate_results['MOEConfusionMatrixNormalized'].values), {'x': 'columns', 'y': 'index',
                                                                                           'value': 'values'})
                 )
             if 'SuperClassConfusionMatrix' in validate_evaluate_results.keys():
                 wandb_log_dict['validate.SuperClassConfusionMatrixHeatMap'] = (
                     wandb.plot_table('heatmap', wandb.Table(
-                    columns=list(map(str, validate_evaluate_results['SuperClassConfusionMatrix'].columns.values)),
-                    data=validate_evaluate_results['SuperClassConfusionMatrix'].values), {'x': 'columns', 'y': 'index',
+                    columns=list(map(str, validate_evaluate_results['SuperClassConfusionMatrixNormalized'].columns.values)),
+                    data=validate_evaluate_results['SuperClassConfusionMatrixNormalized'].values), {'x': 'columns', 'y': 'index',
                                                                                           'value': 'values'})
                 )
                 wandb_log_dict['train.SuperClassConfusionMatrixHeatMap'] = (
                     wandb.plot_table('heatmap', wandb.Table(
-                    columns=list(map(str, train_evaluate_results['SuperClassConfusionMatrix'].columns.values)),
-                    data=train_evaluate_results['SuperClassConfusionMatrix'].values), {'x': 'columns', 'y': 'index',
+                    columns=list(map(str, train_evaluate_results['SuperClassConfusionMatrixNormalized'].columns.values)),
+                    data=train_evaluate_results['SuperClassConfusionMatrixNormalized'].values), {'x': 'columns', 'y': 'index',
                                                                                           'value': 'values'})
                 )
-            if 'MOEConfusionMatrix' in validate_evaluate_results.keys() and 'Specialization' in validate_evaluate_results.keys():
+            if 'MOEConfusionMatrixNormalized' in validate_evaluate_results.keys() and 'Specialization' in validate_evaluate_results.keys():
                 wandb_log_dict['validate.SpecializationHeatMap'] = (
                     wandb.plot_table('heatmap', wandb.Table(
-                    columns=list(map(str, validate_evaluate_results['MOEConfusionMatrix'].columns.values)),
+                    columns=list(map(str, validate_evaluate_results['MOEConfusionMatrixNormalized'].columns.values)),
                     data=validate_evaluate_results['Specialization'].values), {'x': 'columns', 'y': 'index',
                                                                                           'value': 'values'})
                 )
                 wandb_log_dict['train.SpecializationHeatMap'] =(
                     wandb.plot_table('heatmap', wandb.Table(
-                    columns=list(map(str, train_evaluate_results['MOEConfusionMatrix'].columns.values)),
+                    columns=list(map(str, train_evaluate_results['MOEConfusionMatrixNormalized'].columns.values)),
                     data=train_evaluate_results['Specialization'].values), {'x': 'columns', 'y': 'index',
                                                                                           'value': 'values'})
                 )
@@ -144,58 +147,8 @@ class Experiment:
 
 
 
-
-    # def log_wandb_logs(self, train_evaluate_results, validate_evaluate_results, model, step):
-    #     wandb_log_dict = {'train': train_evaluate_results, 'validate': validate_evaluate_results}
-    #     if isinstance(model, MixtureOfExperts):
-    #         if 'MOEConfusionMatrix' in validate_evaluate_results.keys():
-    #             wandb_log_dict['validate.MOEConfusionMatrixHeatMap'] = wandb.plots.HeatMap(
-    #                 validate_evaluate_results['MOEConfusionMatrix'].columns.values,
-    #                 validate_evaluate_results['MOEConfusionMatrix'].index,
-    #                 validate_evaluate_results['MOEConfusionMatrix'].values)
-    #             wandb_log_dict['train.MOEConfusionMatrixHeatMap'] = wandb.plots.HeatMap(
-    #                 train_evaluate_results['MOEConfusionMatrix'].columns.values,
-    #                 train_evaluate_results['MOEConfusionMatrix'].index,
-    #                 train_evaluate_results['MOEConfusionMatrix'].values)
-    #         if 'SuperClassConfusionMatrix' in validate_evaluate_results.keys():
-    #             wandb_log_dict['validate.SuperClassConfusionMatrixHeatMap'] = wandb.plots.HeatMap(
-    #                 validate_evaluate_results['SuperClassConfusionMatrix'].columns.values,
-    #                 validate_evaluate_results['SuperClassConfusionMatrix'].index,
-    #                 validate_evaluate_results['SuperClassConfusionMatrix'].values)
-    #             wandb_log_dict['train.SuperClassConfusionMatrixHeatMap'] = wandb.plots.HeatMap(
-    #                 train_evaluate_results['SuperClassConfusionMatrix'].columns.values,
-    #                 train_evaluate_results['SuperClassConfusionMatrix'].index,
-    #                 train_evaluate_results['SuperClassConfusionMatrix'].values)
-    #         if 'MOEConfusionMatrix' in validate_evaluate_results.keys() and 'Specialization' in validate_evaluate_results.keys():
-    #             wandb_log_dict['validate.SpecializationHeatMap'] = wandb.plots.HeatMap(
-    #                 validate_evaluate_results['MOEConfusionMatrix'].index,
-    #                 validate_evaluate_results['MOEConfusionMatrix'].columns.values,
-    #                 validate_evaluate_results['Specialization']
-    #             )
-    #             wandb_log_dict['train.SpecializationHeatMap'] = wandb.plots.HeatMap(
-    #                 train_evaluate_results['MOEConfusionMatrix'].index,
-    #                 train_evaluate_results['MOEConfusionMatrix'].columns.values,
-    #                 train_evaluate_results['Specialization'])
-    #         if step % 10 == 0 or step == self.model.config['epochs'] - 1:
-    #             experts_correct_preds_per_class = []
-    #             for i, expert in enumerate(model.experts):
-    #                 logger.debug(f"Confusion Matrix for Expert {i}")
-    #                 labels, preds = utils.get_y_true_and_y_pred_from_expert(model, self.test_loader, i)
-    #                 cm = ConfusionMatrix.compute_from_y_pred_y_true(labels, preds)
-    #                 logger.debug(cm)
-    #                 experts_correct_preds_per_class.append(np.diag(cm) / cm.sum(axis=1))
-    #             if 'MOEConfusionMatrix' in validate_evaluate_results.keys():
-    #                 wandb_log_dict['AccPerExpertHeatMap'] = wandb.plots.HeatMap(
-    #                     train_evaluate_results['MOEConfusionMatrix'].index,
-    #                     train_evaluate_results['MOEConfusionMatrix'].columns.values,
-    #                     np.array(experts_correct_preds_per_class))
-    #     wandb.log(wandb_log_dict)
-    #     wandb.summary.update({'max.validate.Accuracy': max(wandb.summary.get('max.validate.Accuracy', 0), validate_evaluate_results['Accuracy']),
-    #                           'min.validate.Loss': min(wandb.summary.get('min.validate.Loss', float('inf')), validate_evaluate_results['total_loss'])})
-
     def run_normal_model(self, epoch):
         self.model.model.initial_routing_phase = False
-        # if epoch >= 6:
         if self.model.alternate:
             router_phase = epoch % self.model.alternate == 0 and epoch != 0
             self.model.alternate_training_modules(router_phase)
@@ -216,8 +169,8 @@ class Experiment:
         validate_evaluate_results = self.evaluate_and_save_results(epoch + 1, mode='test', model=self.model)
         logger.info(f"Train: {train_evaluate_results}")
         logger.info(f"Validate: {validate_evaluate_results}")
-        if wandb.run:
-            wandb.watch(self.model.model)
+        # if wandb.run:
+        #     wandb.watch(self.model.model)
         return train_evaluate_results, validate_evaluate_results
 
     def run(self):
@@ -238,11 +191,11 @@ class Experiment:
                     train_results, validate_results = self.run_rl_combined_model(epoch)
                 else:
                     train_results, validate_results = self.run_normal_model(epoch)
-                routing_entropy = self.model.router_accumulator()
-                if routing_entropy is not None:
-                    np.set_printoptions(threshold=routing_entropy.stats
-                                        .shape[0])
-                    print(f"Routing Entropy: {routing_entropy}")
+                # routing_entropy = self.model.router_accumulator()
+                # if routing_entropy is not None:
+                #     np.set_printoptions(threshold=routing_entropy.stats
+                #                         .shape[0])
+                #     print(f"Routing Entropy: {routing_entropy}")
                 # if not self.model.model.router_config.get('epochs')[0] <= epoch <= \
                 #        self.model.model.router_config.get('epochs')[1]:
                 #     # change router
@@ -264,6 +217,10 @@ class Experiment:
                         wait_duration=timedelta(minutes=5)
                     )
                     break
+
+            if np.isnan(train_results['total_loss']) or np.isnan(validate_results['total_loss']):
+                logger.error(f"Loss is nan, breaking")
+                break
 
             # if validate_results['Accuracy'] > best_acc:
             #     best_acc = validate_results['Accuracy']

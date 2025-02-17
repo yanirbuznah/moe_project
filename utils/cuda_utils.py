@@ -19,6 +19,7 @@ def get_gpu_free_memory():
 
 
 def get_unoccupied_device():
+        return torch.device('cuda:1')
         memory_free_values = get_gpu_free_memory()
         if memory_free_values == [-1]:
             return torch.device('cpu')

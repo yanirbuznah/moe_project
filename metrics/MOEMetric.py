@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import torch
 from numpy import dtype
-from scipy.stats import chi2_contingency, entropy, spearmanr
+from scipy.stats import chi2_contingency, entropy, spearmanr, uniform
 from sklearn.metrics import confusion_matrix
 
 from logger import Logger
@@ -37,7 +37,8 @@ class MoEMetricPreprocessor(Metric, metaclass=SingletonMeta):
     def __call__(self, *args, **kwargs):
         y_pred, y_true, routes, counts, model, x, sc, route_probs = self._parse_args(*args, **kwargs)
         self.num_experts = model.num_experts
-        random_routes = (routes + 1) % self.num_experts  # torch.randint(0, model.num_experts, (x.shape[0],), device=model.device)
+        random_routes = (
+                                routes + 1) % self.num_experts  # torch.randint(0, model.num_experts, (x.shape[0],), device=model.device)
         random_outputs = model.get_experts_logits_from_indexes_list(model.get_indexes_list(random_routes),
                                                                     model.encoder(x)).argmax(dim=-1).cpu()
         self.route_probs = torch.cat((self.route_probs, route_probs), dim=0) if route_probs is not None else None
@@ -153,21 +154,42 @@ class RouterVSRandomAcc(MOEMetric):
         return torch.Tensor([diff_mean, diff_std])
 
 
+
+
 class MOEConfusionMatrix(MOEMetric):
     def compute(self):
-        return pd.DataFrame(confusion_matrix(self.labels, self.gates)[:, :self.num_experts], index=self.class_names)
+        return self.compute_manual(gates=self.gates, labels=self.labels, num_experts=self.num_experts,
+                                   class_names=self.class_names)
 
     @staticmethod
     def compute_manual(*, gates, labels, num_experts, class_names):
-        return pd.DataFrame(confusion_matrix(labels, gates)[:, :num_experts], index=class_names)
+        df = pd.DataFrame(confusion_matrix(labels, gates)[:, :num_experts], index=class_names)
+        return df
 
 
 class SuperClassConfusionMatrix(MOEMetric):
     def compute(self):
         if len(self.super_classes) == 0:
             return -1
-        return pd.DataFrame(confusion_matrix(self.super_classes, self.gates)[:, :self.num_experts],
-                            index=self.super_classes_names)
+        return MOEConfusionMatrix.compute_manual(gates=self.gates, labels=self.super_classes,
+                                                 num_experts=self.num_experts, class_names=self.super_classes_names)
+
+class MOEConfusionMatrixNormalized(MOEMetric):
+    def compute(self):
+        return self.compute_manual(gates=self.gates, labels=self.labels, num_experts=self.num_experts,
+                                   class_names=self.class_names)
+
+    @staticmethod
+    def compute_manual(*, gates, labels, num_experts, class_names):
+        df = MOEConfusionMatrix.compute_manual(gates=gates, labels=labels, num_experts=num_experts, class_names=class_names)
+        return df.apply(lambda row: row / row.sum(), axis=1)
+
+class SuperClassConfusionMatrixNormalized(MOEMetric):
+    def compute(self):
+        if len(self.super_classes) == 0:
+            return -1
+        return MOEConfusionMatrixNormalized.compute_manual(gates=self.gates, labels=self.super_classes,
+                                                 num_experts=self.num_experts, class_names=self.super_classes_names)
 
 
 class PValue(MOEMetric):
@@ -179,6 +201,26 @@ class PValue(MOEMetric):
             logger.info('p-value calculation failed with error: ', e)
             logger.debug('adding small noise to the confusion matrix')
             return chi2_contingency(conmat + np.random.uniform(1e-10, 1e-5, conmat.shape))[1]
+
+
+class MH(MOEMetric):
+    def compute(self):
+        return self.compute_manual(gates=self.gates, labels=self.labels, num_experts=self.num_experts)
+
+    @staticmethod
+    def compute_manual(*, gates, labels, num_experts):
+        conmat = confusion_matrix(labels, gates)[:, :num_experts].T
+        conmat_probs = conmat / conmat.sum(axis=0)
+        max_entropy = np.log2(num_experts)
+        H = entropy(conmat_probs, base=2) / max_entropy
+        return H.mean()
+
+class SuperClassMH(MOEMetric):
+    def compute(self):
+        if len(self.super_classes) == 0:
+            return -1
+        return MH.compute_manual(gates=self.gates, labels=self.super_classes, num_experts=self.num_experts)
+
 
 
 class ExpertEntropy(MOEMetric):
@@ -296,6 +338,48 @@ class NewSpecialization(MOEMetric):
 class DeadExperts(MOEMetric):
     def compute(self):
         return self.num_experts - self.gates.unique().shape[0]
+
+    @staticmethod
+    def compute_manual(*, gates):
+        return gates.unique().shape[0]
+
+
+class DeadExpertsSparsed(MOEMetric):
+
+    @staticmethod
+    def evenly_distributed(num_experts, gates):
+        return len(gates) / num_experts
+
+    @staticmethod
+    def actual_distribution_per_expert(expert, gates):
+        return sum(gates == expert)
+
+    @staticmethod
+    def indicator(expert, gates, num_experts):
+        return min(DeadExpertsSparsed.evenly_distributed(num_experts, gates),
+                   DeadExpertsSparsed.actual_distribution_per_expert(expert,
+                                                                     gates)) / DeadExpertsSparsed.evenly_distributed(
+            num_experts, gates)
+
+    @staticmethod
+    def actual_distribution(gates, num_experts):
+        return sum(
+            [DeadExpertsSparsed.indicator(expert, gates, num_experts) for expert in range(num_experts)]) / num_experts
+
+    def compute(self):
+        dist = DeadExpertsSparsed.actual_distribution(self.gates, self.num_experts)
+        if isinstance(dist, torch.Tensor):
+            dist = dist.item()
+        return 1 - dist
+
+    @staticmethod
+    def compute_manual(*, gates, num_experts):
+        return 1 - DeadExpertsSparsed.actual_distribution(gates, num_experts).item()
+
+
+class DeadExpertsNormalized(MOEMetric):
+    def compute(self):
+        return 1 - (self.gates.unique().shape[0] / self.num_experts)
 
     @staticmethod
     def compute_manual(*, gates):

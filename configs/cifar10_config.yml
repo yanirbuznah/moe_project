@@ -1,7 +1,7 @@
 log:
-  wandb_project_name:  cifar10_runs_moe #pretrained_experts_experiment # hingeLoss_combinations_losses1 #DeepSeek_regret_based_cifar10_parameters_search # linear_balancing_resnet_cifar10_experiment_detached_experts
-  experiment_name: train_from_scratch_imagenet
-  experiment_description: dummy_description
+  wandb_project_name: null #cifar10_diversity_loss_vs_cer_loss
+  experiment_name: cifar10_2_SGD
+  experiment_description: cifar10_2_SGD
 
 
 dataloader: !include dataloader_configs/cifar10_dataloader_config.yml
@@ -10,8 +10,8 @@ model:
   model: !include model_configs/resnet18_model_config.yml
 #  model: !include model_configs/resnet18_and_rl_combined_model_config.yml
   loss: !include loss_configs/moe_loss_config.yml
-  optimizer: Adam
-  lr: !!float 0.001
+  optimizer: SGD
+  lr: !!float 0.1
 
 
 metrics:
@@ -25,14 +25,15 @@ metrics:
 #    - Recall
 #    - pvalue
     - RouterVsRandomAcc
-#    - ExpertEntropy
+    - ExpertEntropy
     - Consistency
 #    - Specialization
     - DeadExperts
     - AccuracyDiff
+    - MH
 
 #    - NewSpecialization
 seed: 0
-epochs: 50
+epochs: 400
 
 # Path: configs\experiment_configs\cifar10_config.yml

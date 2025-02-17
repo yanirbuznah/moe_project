@@ -2,9 +2,9 @@ type: moe
 
 router:
   type: resnet
-  action_assignment_strategy: none
+  action_assignment_strategy: BiasAssignment
   model_config: !include router_configs/resnet_18_router_config.yml
-  epochs: [0, 100]
+  epochs: [0, 400]
   supervised: true
 
 
@@ -14,4 +14,4 @@ expert: !include expert_configs/resnet18_expert_config.yml
 num_experts: 2
 num_backbone_experts: 0
 k: 1
-alternate: 2
+alternate: 0

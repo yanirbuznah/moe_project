@@ -1,0 +1,5 @@
+DiversityLoss:
+  name: DiversityLoss
+  type: DiversityLoss
+  params:
+    full_model_parameters: False

@@ -5,7 +5,7 @@ import torch
 from scipy.optimize import linear_sum_assignment
 
 
-def action_assignment_strategy(strategy: str):
+def action_assignment_strategy(strategy: str, num_experts: int):
     if strategy is None or strategy == 'none':
         return lambda x: x.argmax(axis=1)
     if strategy == 'LinearAssignment':
@@ -16,6 +16,8 @@ def action_assignment_strategy(strategy: str):
         return LinearAssignmentByDiff()
     elif strategy == 'BaseLinearAssignment':
         return BaseLinearAssignment()
+    elif strategy == 'BiasAssignment':
+        return BiasAssignment(num_experts)
     else:
         raise ValueError(f'Unknown strategy {strategy}')
 
@@ -212,6 +214,25 @@ class BaseLinearAssignment:
 
         return top_bidders
 
+class BiasAssignment:
+
+    def __init__(self, num_experts: int, u: float = 0.001):
+        self.num_experts = num_experts
+        self.u = u
+        self.bias = torch.zeros(num_experts)
+
+    def __call__(self, routes: torch.Tensor):
+        scores = torch.softmax(routes, dim=-1).cpu() + self.bias
+        assignments = scores.argmax(dim=-1)
+
+        counts = torch.bincount(assignments, minlength=self.num_experts).to(torch.float32)
+        rewards = counts.mean() - counts
+        self.update(rewards)
+        return assignments
+
+    def update(self, rewards: torch.Tensor):
+        rewards_sign = torch.sign(rewards)
+        self.bias += self.u * rewards_sign
 
 
 if __name__ == '__main__':

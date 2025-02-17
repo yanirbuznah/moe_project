@@ -11,3 +11,4 @@ from .CrossEntropyRoutingLoss import CrossEntropyRoutingLoss
 from .FakeCrossEntropyLoss import FakeCrossEntropyLoss
 from .HingeBalancingLoss import HingeBalancingLoss
 from .LossWrapper import LossWrapper
+from .DiversityLoss import DiversityLoss

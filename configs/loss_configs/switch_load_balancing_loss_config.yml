@@ -3,3 +3,4 @@ SwitchLoadBalancingLoss:
   type: SwitchLoadBalancingLoss
   params:
     detach_experts_grad: true
+    clamp: false

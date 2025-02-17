@@ -1,10 +1,12 @@
+import torch
+
 from . import Loss
 
 
 class SwitchLoadBalancingLoss(Loss):
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         super().__init__()
-
+        self.clamp = kwargs.get('clamp', True)
 
     def __call__(self, *args, **kwargs):
         route_probabilities = next(
@@ -20,3 +22,5 @@ class SwitchLoadBalancingLoss(Loss):
         route_prob = route_probabilities.sum(axis=0) / total
         num_of_experts = route_probabilities.shape[-1]
         self.stat = num_of_experts * (route_fraction * route_prob).sum()
+        if self.clamp:
+            self.stat = torch.clamp(self.stat - 1, min=0.0, max=1.0)

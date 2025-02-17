@@ -1,11 +1,13 @@
 transforms:
-
   - type: RandomCrop
     size: 32
     padding: 4
-    padding_mode: reflect
+    padding_mode: constant
   - type: RandomHorizontalFlip
     p: 0.5
+
+
+
 #  - type: RandomVerticalFlip
 #    p: 0.5
 #  - type: RandomRotation

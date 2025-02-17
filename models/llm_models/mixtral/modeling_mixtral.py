@@ -1,9 +1,16 @@
 import traceback
 import sys
-# sys.path.append('/home/dsi/buznahy/moe_project/models/llm_models')
-# from utils.utils import compute_perplexity
-# from models.llm_models.utils.utils import compute_perplexity
-# from models.llm_models.utils.cuda_utils import get_gpu_free_memory
+
+from accelerate import Accelerator
+from lightning_fabric import Fabric
+from pytorch_lightning.strategies import FSDPStrategy
+from torch.optim import AdamW
+from torch.utils.data import DataLoader
+
+sys.path.append('/home/dsi/buznahy/moe_project')
+from models.llm_models.deepspeed_configs.get_deepspeed_config import get_deepspeed_config
+from models.llm_models.utils.utils import compute_perplexity
+from models.llm_models.utils.cuda_utils import get_gpu_free_memory
 
 # coding=utf-8
 # Copyright 2023 Mistral AI and the HuggingFace Inc. team. All rights reserved.
@@ -33,7 +40,7 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 import torch
 
-torch.set_float32_matmul_precision('high')
+torch.set_float32_matmul_precision('medium')
 import torch.nn.functional as F
 import torch.utils.checkpoint
 import wandb
@@ -1803,16 +1810,15 @@ from datasets import load_dataset
 import pytorch_lightning as pl
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
-from transformers import MixtralForCausalLM
 
 
 # Define the LightningModule
 class MixtralLightningModule(pl.LightningModule):
-    def __init__(self, model_name, cache_model_dir, learning_rate=1e-4):
+    def __init__(self, model_name, cache_model_dir, learning_rate=1e-4, token="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"):
         super().__init__()
-        self.model = MixtralForCausalLM.from_pretrained(model_name, cache_dir=cache_model_dir, local_files_only=True)
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name, cache_dir=cache_model_dir, local_files_only=True)
-        self.tokenizer.pad_token = self.tokenizer.eos_token
+        self.model = MixtralForCausalLM.from_pretrained(model_name, cache_dir=cache_model_dir, token=token)
+        # self.tokenizer = AutoTokenizer.from_pretrained(model_name, cache_dir=cache_model_dir, token=token)
+        # self.tokenizer.pad_token = self.tokenizer.eos_token
         self.learning_rate = learning_rate
 
     def forward(self, input_ids, attention_mask=None, labels=None):
@@ -1837,19 +1843,75 @@ class MixtralLightningModule(pl.LightningModule):
         return optimizer
 
 
+class MixtralFabricModule:
+    def __init__(self, model_name, cache_model_dir, learning_rate=1e-4, token="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"):
+        self.model = MixtralForCausalLM.from_pretrained(model_name, cache_dir=cache_model_dir, token=token)
+        self.learning_rate = learning_rate
+        self.fabric = Fabric(accelerator="gpu", devices="auto", precision="bf16-mixed")
+        self.fabric.launch()
+
+    def forward(self, input_ids, attention_mask=None, labels=None):
+        return self.model(input_ids, attention_mask=attention_mask, labels=labels)
+
+    def training_step(self, batch):
+        outputs = self(**batch)
+        loss = outputs.loss
+        return loss
+
+    def validation_step(self, batch):
+        outputs = self(**batch)
+        val_loss = outputs.loss
+        return val_loss
+
+    def configure_optimizers(self):
+        optimizer_params = [{'params': layer.block_sparse_moe.gate.parameters()} for layer in self.model.model.layers]
+        optimizer = AdamW(optimizer_params, lr=self.learning_rate)
+        return optimizer
+
+    def train(self, train_dataloader, val_dataloader, max_epochs=1):
+        optimizer = self.configure_optimizers()
+        self.fabric.setup(self.model, optimizer)
+        for epoch in range(max_epochs):
+            self.model.train()
+            for batch in train_dataloader:
+                batch = self.fabric.to_device(batch)
+                loss = self.training_step(batch)
+                self.fabric.backward(loss)
+                optimizer.step()
+                optimizer.zero_grad()
+            self.model.eval()
+            with torch.no_grad():
+                for batch in val_dataloader:
+                    batch = self.fabric.to_device(batch)
+                    val_loss = self.validation_step(batch)
+                    print(f"Validation Loss: {val_loss.item()}")
+
+
 def main_lightning():
+    # os.makedirs(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lightning_logs'), exist_ok=True)
+
     # Load datasets
-    base_path = "/data/users/buznahy/" if os.path.exists("/data/users/buznahy/") else "/home/dsi/buznahy/"
-    cache_model_dir = f"{base_path}mistralai/Mixtral-8x7B-v0.1"
+    acssess_token = "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"
+    base_path = ("/data/users/buznahy/") if os.path.exists("/data/users/buznahy/") else "/home/dsi/buznahy/"
+    print(f"BASIC PATH: {base_path}")
+    cache_model_dir = f"{base_path}/models/mistralai/Mixtral-8x7B-v0.1"
+    cache_dataset_dir = f"{base_path}/datasets/train_1000_length_256"
+    cache_tokenized_dataset_dir = f"{base_path}/datasets/train_1000_length_256_tokenized"
+    if len(os.listdir(base_path)) == 0:
+        print("No files in base path directory")
+        return
+
     model_name = "mistralai/Mixtral-8x7B-v0.1"
 
-    tokenizer = AutoTokenizer.from_pretrained(model_name, cache_dir=cache_model_dir)
+    print('current directory:', os.getcwd())
+
+    tokenizer = AutoTokenizer.from_pretrained(model_name, cache_dir=cache_model_dir, token=acssess_token)
     tokenizer.pad_token = tokenizer.eos_token
 
-    test_open_orca_ds = load_dataset("Open-Orca/OpenOrca", split="train[:1000]",
-                                     cache_dir=f"{base_path}/datasets/train_size_1_test_size_1000_length_256")
-    train_open_orca_ds = load_dataset("Open-Orca/OpenOrca", split="train[0:1]",
-                                      cache_dir=f"{base_path}/datasets/train_size_1_test_size_1000_length_256")
+    test_open_orca_ds = load_dataset("Open-Orca/OpenOrca", split="train[1000:2000]",
+                                     cache_dir=cache_dataset_dir)
+    train_open_orca_ds = load_dataset("Open-Orca/OpenOrca", split="train[0:1000]"
+                                      , cache_dir=cache_dataset_dir)
 
     test_tokenized_dataset = test_open_orca_ds.map(lambda x:
                                                    tokenizer(
@@ -1857,35 +1919,41 @@ def main_lightning():
                                                        x['response'],
                                                        truncation=True,
                                                        padding='max_length',
-                                                       max_length=20,
+                                                       max_length=256,
                                                    ),
-                                                   cache_file_name=f'{base_path}deepseek/cache/test_size_1000_length_20')
+                                                   cache_file_name=cache_tokenized_dataset_dir)
     train_tokenized_dataset = train_open_orca_ds.map(lambda x:
                                                      tokenizer(
                                                          x['question'],
                                                          x['response'],
                                                          truncation=True,
                                                          padding='max_length',
-                                                         max_length=20
+                                                         max_length=256
                                                      ),
-                                                     cache_file_name=f'{base_path}deepseek/cache/train_size_1_length_20')
+                                                     cache_file_name=cache_tokenized_dataset_dir)
 
     # Define the DataLoader
     train_dataloader = torch.utils.data.DataLoader(train_tokenized_dataset, batch_size=1, shuffle=True)
     val_dataloader = torch.utils.data.DataLoader(test_tokenized_dataset, batch_size=1)
 
+    print(f"train_dataloader: {len(train_dataloader)}")
+    print(f"val_dataloader: {len(val_dataloader)}")
+
     # Initialize the LightningModule
-    model = MixtralLightningModule(model_name, cache_model_dir)
+    model = MixtralLightningModule(model_name, cache_model_dir, token=acssess_token)
+
+    os.makedirs(f"{base_path}/mixtral/results", exist_ok=True)
 
     # Define the PyTorch Lightning Trainer
     trainer = Trainer(
-        precision=16,
+        precision='bf16-mixed',
         max_epochs=1,
         devices="auto",  # 4 if torch.cuda.is_available() else 0,
         accelerator="gpu" if torch.cuda.is_available() else "cpu",
         callbacks=[ModelCheckpoint(monitor='val_loss')],
         accumulate_grad_batches=2,
-            strategy="ddp",
+        strategy="ddp",  # FSDPStrategy(auto_wrap_policy=None),
+        default_root_dir=f'{base_path}/mixtral/results',
     )
 
     # Train the model
@@ -1902,19 +1970,19 @@ def main():
     from transformers import AutoTokenizer, Trainer, DataCollatorForLanguageModeling, TrainingArguments
 
     base_path = "/data/users/buznahy/" if os.path.exists("/data/users/buznahy/") else "/home/dsi/buznahy/"
+    cache_model_dir = f"{base_path}/models/mistralai/Mixtral-8x7B-v0.1"
 
-    cache_model_dir = f"{base_path}mistralai/Mixtral-8x7B-v0.1"
     model_name = "mistralai/Mixtral-8x7B-v0.1"
 
-    tokenizer = AutoTokenizer.from_pretrained(model_name, cache_dir=cache_model_dir)
+    tokenizer = AutoTokenizer.from_pretrained(model_name, cache_dir=cache_model_dir, force_download=True)
     tokenizer.pad_token = tokenizer.eos_token
 
     from datasets import load_dataset
 
-    test_open_orca_ds = load_dataset("Open-Orca/OpenOrca", split="train[:1000]",
-                                     cache_dir=f"{base_path}/datasets/train_size_1_test_size_1000_length_256")
-    train_open_orca_ds = load_dataset("Open-Orca/OpenOrca", split="train[0:1]"
-                                      , cache_dir=f"{base_path}/datasets/train_size_1_test_size_1000_length_256")
+    test_open_orca_ds = load_dataset("Open-Orca/OpenOrca", split="train[:10000]",
+                                     cache_dir=f"{base_path}/datasets/train_1_test_1000_length_256")
+    train_open_orca_ds = load_dataset("Open-Orca/OpenOrca", split="train[0:10]"
+                                      , cache_dir=f"{base_path}/datasets/train_1_test_1000_length_256")
 
     test_tokenized_dataset = test_open_orca_ds.map(lambda x:
                                                    tokenizer(
@@ -1922,18 +1990,18 @@ def main():
                                                        x['response'],
                                                        truncation=True,
                                                        padding='max_length',
-                                                       max_length=20,
+                                                       max_length=256,
                                                    ),
-                                                   cache_file_name=f'{base_path}deepseek/cache/test_size_1000_length_20')
+                                                   cache_file_name=f'{base_path}deepseek/cache/test_1000_length_256')
     train_tokenized_dataset = train_open_orca_ds.map(lambda x:
                                                      tokenizer(
                                                          x['question'],
                                                          x['response'],
                                                          truncation=True,
                                                          padding='max_length',
-                                                         max_length=20
+                                                         max_length=256
                                                      ),
-                                                     cache_file_name=f'{base_path}deepseek/cache/train_size_1_length_20')
+                                                     cache_file_name=f'{base_path}deepseek/cache/train_1_length_256')
 
     # Define the training arguments
     training_args = TrainingArguments(
@@ -1951,9 +2019,9 @@ def main():
         logging_steps=10,
         eval_accumulation_steps=10,
         gradient_accumulation_steps=1,
-        # fp16=True,
+        fp16=True,
         # dataloader_num_workers=4,
-        deepspeed=get_deepspeed_config('zero2'),
+        # deepspeed=get_deepspeed_config('zero2'),
         # Optional: if using DeepSpeed # Enable distributed training
         # local_rank=-1 # Set this to the rank of the process
         # eval_on_start=True,
@@ -1973,7 +2041,8 @@ def main():
             device = "cpu"
             training_args.use_cpu = True
 
-        model = MixtralForCausalLM.from_pretrained(model_name, cache_dir=cache_model_dir)
+        model = MixtralForCausalLM.from_pretrained(model_name, device_map="auto", cache_dir=cache_model_dir,
+                                                   torch_dtype=torch.bfloat16)
 
         # get_heat_map_model(model)
         # exit(0)
@@ -2003,8 +2072,110 @@ def main():
         print(get_gpu_free_memory())
 
 
+def main_fabric():
+    acssess_token = "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"
+    base_path = ("/data/users/buznahy/") if os.path.exists("/data/users/buznahy/") else "/home/dsi/buznahy/"
+    cache_model_dir = f"{base_path}/models/mistralai/Mixtral-8x7B-v0.1"
+    cache_dataset_dir = f"{base_path}/datasets/train_1000_length_256"
+    cache_tokenized_dataset_dir = f"{base_path}/datasets/train_1000_length_256_tokenized"
+
+    model_name = "mistralai/Mixtral-8x7B-v0.1"
+    tokenizer = AutoTokenizer.from_pretrained(model_name, cache_dir=cache_model_dir, token=acssess_token)
+    tokenizer.pad_token = tokenizer.eos_token
+
+    test_open_orca_ds = load_dataset("Open-Orca/OpenOrca", split="train[1000:2000]", cache_dir=cache_dataset_dir)
+    train_open_orca_ds = load_dataset("Open-Orca/OpenOrca", split="train[0:1000]", cache_dir=cache_dataset_dir)
+
+    test_tokenized_dataset = test_open_orca_ds.map(
+        lambda x: tokenizer(x['question'], x['response'], truncation=True, padding='max_length', max_length=256),
+        cache_file_name=cache_tokenized_dataset_dir)
+    train_tokenized_dataset = train_open_orca_ds.map(
+        lambda x: tokenizer(x['question'], x['response'], truncation=True, padding='max_length', max_length=256),
+        cache_file_name=cache_tokenized_dataset_dir)
+
+    train_dataloader = DataLoader(train_tokenized_dataset, batch_size=1, shuffle=True)
+    val_dataloader = DataLoader(test_tokenized_dataset, batch_size=1)
+
+    model = MixtralFabricModule(model_name, cache_model_dir, token=acssess_token)
+    model.train(train_dataloader, val_dataloader, max_epochs=1)
+
+
+
+def main1():
+    base_path = "/data/users/buznahy/" if os.path.exists("/data/users/buznahy/") else "/home/dsi/buznahy/"
+    cache_model_dir = f"{base_path}/models/mistralai/Mixtral-8x7B-v0.1"
+    model_name = "mistralai/Mixtral-8x7B-v0.1"
+
+    tokenizer = AutoTokenizer.from_pretrained(model_name, cache_dir=cache_model_dir, force_download=True)
+    tokenizer.pad_token = tokenizer.eos_token
+
+    test_open_orca_ds = load_dataset("Open-Orca/OpenOrca", split="train[:10000]",
+                                     cache_dir=f"{base_path}/datasets/train_1_test_1000_length_256")
+    train_open_orca_ds = load_dataset("Open-Orca/OpenOrca", split="train[0:10]",
+                                      cache_dir=f"{base_path}/datasets/train_1_test_1000_length_256")
+
+    test_tokenized_dataset = test_open_orca_ds.map(
+        lambda x: tokenizer(x['question'], x['response'], truncation=True, padding='max_length', max_length=256),
+        cache_file_name=f'{base_path}deepseek/cache/test_1000_length_256')
+    train_tokenized_dataset = train_open_orca_ds.map(
+        lambda x: tokenizer(x['question'], x['response'], truncation=True, padding='max_length', max_length=256),
+        cache_file_name=f'{base_path}deepseek/cache/train_1_length_256')
+
+    training_args = TrainingArguments(
+        output_dir=f"{base_path}mixtral/results",
+        eval_strategy="epoch",
+        learning_rate=1e-4,
+        per_device_train_batch_size=1,
+        per_device_eval_batch_size=1,
+        num_train_epochs=1,
+        weight_decay=0.01,
+        logging_dir=f"{base_path}mixtral/results/logs",
+        logging_steps=10,
+        eval_accumulation_steps=10,
+        gradient_accumulation_steps=1,
+        fp16=True,
+    )
+
+    def compute_metrics(eval_pred):
+        logits, labels = eval_pred
+        return {"perplexity": compute_perplexity(logits[0])}
+
+    try:
+        accelerator = Accelerator()
+        model = MixtralForCausalLM.from_pretrained(model_name, cache_dir=cache_model_dir)
+        model.config.output_router_logits = True
+        model.generation_config.pad_token_id = model.generation_config.eos_token_id
+
+        optimizer_params = [{'params': layer.block_sparse_moe.gate.parameters()} for layer in model.model.layers]
+        optimizer = torch.optim.AdamW(optimizer_params, lr=1e-4)
+
+        train_dataloader = torch.utils.data.DataLoader(train_tokenized_dataset, batch_size=1, shuffle=True)
+        val_dataloader = torch.utils.data.DataLoader(test_tokenized_dataset, batch_size=1)
+
+        model, optimizer, train_dataloader, val_dataloader = accelerator.prepare(model, optimizer, train_dataloader,
+                                                                                 val_dataloader)
+
+        trainer = Trainer(
+            model=model,
+            args=training_args,
+            train_dataset=train_tokenized_dataset,
+            eval_dataset=test_tokenized_dataset,
+            tokenizer=tokenizer,
+            data_collator=DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False),
+            compute_metrics=compute_metrics,
+            optimizers=(optimizer, None),
+        )
+        trainer.train()
+
+    except torch.cuda.OutOfMemoryError as e:
+        print(traceback.format_exc())
+        print(get_gpu_free_memory())
+
+
 if __name__ == '__main__':
     if sys.argv[1] == "lightning":
         main_lightning()
+    elif sys.argv[1] == "fabric":
+        main_fabric()
     else:
         main()
