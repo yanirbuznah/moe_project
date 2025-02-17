@@ -1890,8 +1890,7 @@ class MixtralFabricModule:
 def main_lightning():
     # os.makedirs(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lightning_logs'), exist_ok=True)
 
-    # Load datasets
-    acssess_token = "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"
+
     base_path = ("/data/users/buznahy/") if os.path.exists("/data/users/buznahy/") else "/home/dsi/buznahy/"
     print(f"BASIC PATH: {base_path}")
     cache_model_dir = f"{base_path}/models/mistralai/Mixtral-8x7B-v0.1"

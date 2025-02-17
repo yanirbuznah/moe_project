@@ -52,7 +52,7 @@ class LLMDataModule(pl.LightningDataModule):
             shuffle=True,
             collate_fn=self.data_collator,
             pin_memory=True,
-            num_workers=100 )
+            num_workers=10 )
 
     def val_dataloader(self):
         # return ResumableDataLoader(self.val_dataset, batch_size=self.batch_size, collate_fn=self.data_collator,
@@ -63,5 +63,5 @@ class LLMDataModule(pl.LightningDataModule):
             shuffle=False,
             collate_fn=self.data_collator,
             pin_memory=True,
-            num_workers=100
+            num_workers=10
         )
