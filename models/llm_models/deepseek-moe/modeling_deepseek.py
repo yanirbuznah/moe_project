@@ -63,6 +63,9 @@ from losses import DiversityLoss
 from models.llm_models.deepspeed_configs.get_deepspeed_config import get_deepspeed_config
 from models.llm_models.utils.data_module import LLMDataModule
 from models.llm_models.utils.lightning_module import LightningModule
+from lightning.pytorch.loggers import WandbLogger
+from lightning.pytorch import Trainer
+
 
 if is_flash_attn_2_available():
     from flash_attn import flash_attn_func, flash_attn_varlen_func
@@ -1709,7 +1712,8 @@ class DeepseekForSequenceClassification(DeepseekPreTrainedModel):
 
 
 import pytorch_lightning as pl
-from pytorch_lightning import Trainer
+from lightning.pytorch.loggers import WandbLogger
+from lightning.pytorch.trainer import Trainer
 from transformers import DataCollatorForLanguageModeling
 import torch
 
@@ -1902,9 +1906,10 @@ def run_pytorch_lightning_trainer(model, test_tokenized_dataset, tokenizer, trai
         monitor="val_loss",
         mode="min"
     )
-
+    wandb_logger = WandbLogger(log_model="all")
     # Initialize the Trainer
     trainer = Trainer(
+        logger=wandb_logger,
         # precision="bf16-mixed",
         num_sanity_val_steps=100,
         enable_progress_bar=True,
