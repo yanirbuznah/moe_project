@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "/home/dsi/buznahy/moe_project/models/llm_models/deepseek-moe-16b-base/modeling_deepseek.py", line 30, in <module>
+    import torch.nn.functional as F
+  File "/home/dsi/buznahy/miniconda3/envs/moe_project311/lib/python3.11/site-packages/torch/__init__.py", line 405, in <module>
+    from torch._C import *  # noqa: F403
+    ^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 216, in _lock_unlock_module
+KeyboardInterrupt
