@@ -5,6 +5,7 @@ import torch
 class LightningModule(pl.LightningModule):
     def __init__(self, model, tokenizer, optimizers, schedulers=None, lr = 0.001, additional_loss_function = None,  **kwargs):
         super().__init__()
+        self.save_hyperparameters()
         self.model = model
         self.tokenizer = tokenizer
         self._optimizers = optimizers
